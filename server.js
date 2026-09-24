@@ -2,19 +2,55 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000;
+const PORT = process.env.VERCEL ? (process.env.PORT || 3000) : 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
+
+// Static require to ensure @vercel/nft bundles initial seed data into the serverless package
+let BUNDLED_USERS = [];
+try {
+  BUNDLED_USERS = require('./data/users.json');
+} catch (e) {
+  BUNDLED_USERS = [];
+}
+
+let BUNDLED_COLLEGES = [];
+try {
+  BUNDLED_COLLEGES = require('./data/colleges.json');
+} catch (e) {
+  BUNDLED_COLLEGES = [];
+}
+
+// On Vercel serverless, the filesystem is read-only except /tmp
+const isVercel = Boolean(process.env.VERCEL);
+const DATA_DIR = isVercel ? path.join('/tmp', 'unimap_data') : path.join(__dirname, 'data');
 
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create data dir:', err);
+  }
 }
 
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const COLLEGES_FILE = path.join(DATA_DIR, 'colleges.json');
 const KMZ_FILE = path.join(DATA_DIR, 'kmz_boundary.json');
 
-// Helper to safely read JSON
+// Initialize /tmp files on Vercel cold-start from bundled data if not present
+if (isVercel) {
+  try {
+    if (!fs.existsSync(USERS_FILE) && BUNDLED_USERS.length > 0) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(BUNDLED_USERS, null, 2), 'utf8');
+    }
+    if (!fs.existsSync(COLLEGES_FILE) && BUNDLED_COLLEGES.length > 0) {
+      fs.writeFileSync(COLLEGES_FILE, JSON.stringify(BUNDLED_COLLEGES, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.warn('Vercel /tmp seed notice:', e.message);
+  }
+}
+
+// Helper to safely read JSON with bundled fallback
 function readJSON(file, defaultVal = []) {
   try {
     if (fs.existsSync(file)) {
@@ -23,6 +59,9 @@ function readJSON(file, defaultVal = []) {
   } catch (err) {
     console.error('Error reading JSON from ' + file, err);
   }
+  // Fall back to bundled seed if available
+  if (file === USERS_FILE && BUNDLED_USERS.length > 0) return BUNDLED_USERS;
+  if (file === COLLEGES_FILE && BUNDLED_COLLEGES.length > 0) return BUNDLED_COLLEGES;
   return defaultVal;
 }
 
