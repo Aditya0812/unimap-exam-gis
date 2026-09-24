@@ -1,0 +1,44 @@
+[
+  {
+    "username": "admin",
+    "password": "admin123",
+    "role": "admin",
+    "name": "System Administrator"
+  },
+  {
+    "username": "satish",
+    "password": "exam2026",
+    "role": "admin",
+    "name": "Satish (Admin)"
+  },
+  {
+    "username": "officer",
+    "password": "officer2026",
+    "role": "editor",
+    "name": "Exam Coordinator"
+  },
+  {
+    "username": "viewer",
+    "password": "viewer123",
+    "role": "viewer",
+    "name": "Guest Viewer"
+  },
+  {
+    "username": "admin@university.edu",
+    "password": "UniAdmin@2026",
+    "role": "admin",
+    "name": "Prof. Arvind Sharma (Registrar)"
+  },
+  {
+    "username": "controller@exams.edu",
+    "password": "ExamPass#2026",
+    "role": "editor",
+    "name": "Dr. Neha Verma (Controller of Exams)"
+  },
+  {
+    "username": "transit@logistics.edu",
+    "password": "TransitSafe!2026",
+    "role": "editor",
+    "name": "Rajesh Malhotra (Chief Transit Officer)"
+  }
+]
