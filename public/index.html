@@ -110,6 +110,20 @@
         </button>
       </div>
 
+      <!-- College Type Filter Dropdown (Column 4 'type') -->
+      <select 
+        id="college-type-filter" 
+        onchange="onTypeFilterChanged(this.value)"
+        class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-700 outline-none hover:bg-slate-50 focus:border-blue-500 transition cursor-pointer shadow-xs"
+        title="Filter by College Management Type"
+      >
+        <option value="ALL">All College Types</option>
+        <option value="Government">🏛️ Government</option>
+        <option value="Aided">🎖️ Aided</option>
+        <option value="Self-Finance">🎓 Self-Finance</option>
+        <option value="Autonomous">👑 Autonomous</option>
+      </select>
+
       <!-- Quick Exam Centre Filter Toggle -->
       <button 
         id="exam-filter-btn" 
@@ -284,6 +298,94 @@
         <i class="fa-solid fa-compress text-xs"></i>
         <span>Full Screen Map • Click to Exit</span>
       </button>
+    </div>
+
+    <!-- COLLEGE TYPE MAP LEGEND (Bottom Left Floating) -->
+    <div id="map-legend" class="absolute bottom-6 left-4 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/90 p-3 text-xs w-64 transition-all">
+      <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100">
+        <div class="flex items-center space-x-1.5">
+          <i class="fa-solid fa-shapes text-slate-500 text-xs"></i>
+          <span class="font-bold text-slate-800 text-[11px] uppercase tracking-wider">College Types</span>
+        </div>
+        <span class="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Col 4: type</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <!-- Government -->
+        <button 
+          onclick="filterByType('Government')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Government"
+          title="Filter Government colleges"
+        >
+          <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shadow-xs flex-shrink-0">
+            <i class="fa-solid fa-landmark"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Government</div>
+            <div class="text-[9px] text-blue-600 font-medium">Royal Blue</div>
+          </div>
+        </button>
+
+        <!-- Aided -->
+        <button 
+          onclick="filterByType('Aided')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Aided"
+          title="Filter Aided colleges"
+        >
+          <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs flex-shrink-0">
+            <i class="fa-solid fa-award"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Aided</div>
+            <div class="text-[9px] text-emerald-600 font-medium">Emerald Hex</div>
+          </div>
+        </button>
+
+        <!-- Self-Finance -->
+        <button 
+          onclick="filterByType('Self-Finance')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Self-Finance"
+          title="Filter Self-Finance colleges"
+        >
+          <div class="w-5 h-5 rotate-45 rounded-sm bg-purple-600 text-white flex items-center justify-center text-[9px] shadow-xs flex-shrink-0 my-0.5 ml-0.5 mr-1.5">
+            <i class="fa-solid fa-graduation-cap -rotate-45"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Self-Finance</div>
+            <div class="text-[9px] text-purple-600 font-medium">Purple Diamond</div>
+          </div>
+        </button>
+
+        <!-- Autonomous -->
+        <button 
+          onclick="filterByType('Autonomous')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Autonomous"
+          title="Filter Autonomous colleges"
+        >
+          <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-amber-300 ring-offset-1 flex-shrink-0">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Autonomous</div>
+            <div class="text-[9px] text-amber-600 font-medium">Gold Crown</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Exam Centre Indicator & Reset -->
+      <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+        <div class="flex items-center space-x-1.5 text-slate-600 font-medium">
+          <span class="w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">★</span>
+          <span>Exam Centre</span>
+        </div>
+        <button onclick="filterByType('ALL')" class="text-blue-600 hover:text-blue-800 font-bold hover:underline">
+          Reset Filter
+        </button>
+      </div>
     </div>
 
     <!-- KMZ ACTIVE LAYER BADGE (Bottom Center) -->
@@ -690,6 +792,15 @@
           </div>
         </div>
         <div>
+          <label class="block font-semibold text-slate-700 mb-1">College Type (Column 4 'type'):</label>
+          <select id="form-type" class="w-full p-2 border border-slate-300 rounded-lg bg-white text-xs outline-none focus:ring-1 focus:ring-blue-500 font-medium">
+            <option value="Government">Government (Govt)</option>
+            <option value="Aided">Aided (Grant-in-Aid)</option>
+            <option value="Self-Finance">Self-Finance (Private / Unaided)</option>
+            <option value="Autonomous">Autonomous College</option>
+          </select>
+        </div>
+        <div>
           <label class="block font-semibold text-slate-700 mb-1">Branches / Streams:</label>
           <input type="text" id="form-branches" required placeholder="Computer Science, Mechanical, Civil" class="w-full p-2 border border-slate-300 rounded-lg" />
         </div>
@@ -963,18 +1074,18 @@
   <script>
     // Initial Pre-populated Colleges across key educational hubs
     const DEFAULT_COLLEGES = [
-      { id: 1, code: "4118", name: "Visvesvaraya National Institute of Technology (VNIT)", district: "Nagpur", seatingCapacity: 3500, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics, Chemical", isExamCentre: true, lat: 21.1255, lon: 79.0520 },
-      { id: 2, code: "4004", name: "Government College of Engineering, Nagpur (GCOEN)", district: "Nagpur", seatingCapacity: 2200, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics", isExamCentre: true, lat: 21.0963, lon: 79.0880 },
-      { id: 3, code: "4144", name: "Shri Ramdeobaba College of Engineering & Management", district: "Nagpur", seatingCapacity: 2800, branches: "Computer Science, Data Science, AI, Mechanical, Electronics", isExamCentre: true, lat: 21.1783, lon: 79.0618 },
-      { id: 4, code: "4171", name: "Yeshwantrao Chavan College of Engineering (YCCE)", district: "Nagpur", seatingCapacity: 2600, branches: "Computer Science, Information Technology, Civil, Mechanical", isExamCentre: false, lat: 21.0988, lon: 78.9785 },
-      { id: 5, code: "4138", name: "G.H. Raisoni College of Engineering (GHRE)", district: "Nagpur", seatingCapacity: 2400, branches: "Computer Science, Electronics, Mechanical, Civil, Management", isExamCentre: false, lat: 21.1070, lon: 79.0022 },
-      { id: 6, code: "4190", name: "Priyadarshini College of Engineering (PCE)", district: "Nagpur", seatingCapacity: 2300, branches: "Computer Science, Mechanical, Civil, Electrical, Aeronautical", isExamCentre: false, lat: 21.1220, lon: 79.0065 },
-      { id: 7, code: "4163", name: "St. Vincent Pallotti College of Engineering & Tech", district: "Nagpur", seatingCapacity: 1900, branches: "Computer Science, Data Science, Mechanical, Civil", isExamCentre: false, lat: 21.0354, lon: 79.0832 },
-      { id: 8, code: "4201", name: "Bajaj Institute of Technology (BIT)", district: "Wardha", seatingCapacity: 1800, branches: "Computer Science, Mechanical, Civil, Electrical", isExamCentre: true, lat: 20.7453, lon: 78.6022 },
-      { id: 9, code: "4208", name: "Bapurao Deshmukh College of Engineering (BDCE)", district: "Wardha", seatingCapacity: 2000, branches: "Computer Science, Electronics, Mechanical, Civil", isExamCentre: false, lat: 20.7180, lon: 78.5830 },
-      { id: 10, code: "4305", name: "Government College of Engineering, Amravati (GCOEA)", district: "Amravati", seatingCapacity: 2500, branches: "Computer Science, Electronics, Electrical, Mechanical, Civil", isExamCentre: true, lat: 20.9320, lon: 77.7523 },
-      { id: 11, code: "4410", name: "Government College of Engineering, Chandrapur (GCOEC)", district: "Chandrapur", seatingCapacity: 2100, branches: "Mining, Mechanical, Electrical, Computer Science, Civil", isExamCentre: true, lat: 19.9540, lon: 79.2961 },
-      { id: 12, code: "4501", name: "Manoharbhai Patel Institute of Engineering & Tech", district: "Bhandara", seatingCapacity: 1600, branches: "Computer Science, Mechanical, Electronics, Civil", isExamCentre: false, lat: 21.1712, lon: 79.6540 }
+      { id: 1, code: "4118", name: "Visvesvaraya National Institute of Technology (VNIT)", district: "Nagpur", type: "Autonomous", seatingCapacity: 3500, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics, Chemical", isExamCentre: true, lat: 21.1255, lon: 79.0520 },
+      { id: 2, code: "4004", name: "Government College of Engineering, Nagpur (GCOEN)", district: "Nagpur", type: "Government", seatingCapacity: 2200, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics", isExamCentre: true, lat: 21.0963, lon: 79.0880 },
+      { id: 3, code: "4144", name: "Shri Ramdeobaba College of Engineering & Management", district: "Nagpur", type: "Autonomous", seatingCapacity: 2800, branches: "Computer Science, Data Science, AI, Mechanical, Electronics", isExamCentre: true, lat: 21.1783, lon: 79.0618 },
+      { id: 4, code: "4171", name: "Yeshwantrao Chavan College of Engineering (YCCE)", district: "Nagpur", type: "Autonomous", seatingCapacity: 2600, branches: "Computer Science, Information Technology, Civil, Mechanical", isExamCentre: false, lat: 21.0988, lon: 78.9785 },
+      { id: 5, code: "4138", name: "G.H. Raisoni College of Engineering (GHRE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2400, branches: "Computer Science, Electronics, Mechanical, Civil, Management", isExamCentre: false, lat: 21.1070, lon: 79.0022 },
+      { id: 6, code: "4190", name: "Priyadarshini College of Engineering (PCE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2300, branches: "Computer Science, Mechanical, Civil, Electrical, Aeronautical", isExamCentre: false, lat: 21.1220, lon: 79.0065 },
+      { id: 7, code: "4163", name: "St. Vincent Pallotti College of Engineering & Tech", district: "Nagpur", type: "Self-Finance", seatingCapacity: 1900, branches: "Computer Science, Data Science, Mechanical, Civil", isExamCentre: false, lat: 21.0354, lon: 79.0832 },
+      { id: 8, code: "4201", name: "Bajaj Institute of Technology (BIT)", district: "Wardha", type: "Aided", seatingCapacity: 1800, branches: "Computer Science, Mechanical, Civil, Electrical", isExamCentre: true, lat: 20.7453, lon: 78.6022 },
+      { id: 9, code: "4208", name: "Bapurao Deshmukh College of Engineering (BDCE)", district: "Wardha", type: "Aided", seatingCapacity: 2000, branches: "Computer Science, Electronics, Mechanical, Civil", isExamCentre: false, lat: 20.7180, lon: 78.5830 },
+      { id: 10, code: "4305", name: "Government College of Engineering, Amravati (GCOEA)", district: "Amravati", type: "Government", seatingCapacity: 2500, branches: "Computer Science, Electronics, Electrical, Mechanical, Civil", isExamCentre: true, lat: 20.9320, lon: 77.7523 },
+      { id: 11, code: "4410", name: "Government College of Engineering, Chandrapur (GCOEC)", district: "Chandrapur", type: "Government", seatingCapacity: 2100, branches: "Mining, Mechanical, Electrical, Computer Science, Civil", isExamCentre: true, lat: 19.9540, lon: 79.2961 },
+      { id: 12, code: "4501", name: "Manoharbhai Patel Institute of Engineering & Tech", district: "Bhandara", type: "Aided", seatingCapacity: 1600, branches: "Computer Science, Mechanical, Electronics, Civil", isExamCentre: false, lat: 21.1712, lon: 79.6540 }
     ];
 
     // State
@@ -990,6 +1101,7 @@
     let isKmzVisible = true;
     let selectedTileIndex = 0;
     let examOnlyFilter = false;
+    let selectedTypeFilter = "ALL";
     let searchQuery = "";
     let selectedCenterCollege = null;
     let currentRadiusKm = 15;
@@ -1164,7 +1276,15 @@
       const stored = localStorage.getItem("unimap_colleges_db");
       if (stored) {
         try {
-          colleges = JSON.parse(stored);
+          const raw = JSON.parse(stored);
+          if (Array.isArray(raw) && raw.length > 0) {
+            colleges = raw.map(c => ({
+              ...c,
+              type: resolveCollegeType(c.type, c.name)
+            }));
+          } else {
+            colleges = [...DEFAULT_COLLEGES];
+          }
         } catch (e) {
           colleges = [...DEFAULT_COLLEGES];
         }
@@ -1184,7 +1304,10 @@
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            colleges = data;
+            colleges = data.map(c => ({
+              ...c,
+              type: resolveCollegeType(c.type, c.name)
+            }));
             saveColleges();
             renderCollegePins();
             renderDirectoryList();
@@ -1253,6 +1376,162 @@
       }
     }
 
+    // Helper to check if a string contains college type indicators
+    function isCollegeTypeString(str) {
+      if (!str) return false;
+      const s = String(str).replace(/\u00A0/g, " ").trim().toUpperCase();
+      if (!s) return false;
+      return s.includes("AUTO") || s.includes("AIDED") || s.includes("GRANT") ||
+             s.includes("SELF") || s.includes("SFI") || s.includes("PRIVATE") || s.includes("UNAIDED") ||
+             s.includes("NON-GRANT") || s.includes("NON GRANT") || s.includes("PVT") ||
+             s.includes("GOV") || s === "G" || s === "A" || s === "SF" || s === "AUTO";
+    }
+
+    // Helper to resolve and normalize College Type from Column 4 titled 'type' or college metadata
+    function resolveCollegeType(rawType, name = "") {
+      const cleanRaw = String(rawType || "").replace(/\u00A0/g, " ").trim();
+      const t = cleanRaw.toUpperCase();
+      const n = String(name || "").replace(/\u00A0/g, " ").toUpperCase();
+
+      // 1. Autonomous
+      if (t.includes("AUTO") || n.includes("AUTONOMOUS") || n.includes("AUTONOMY")) {
+        return "Autonomous";
+      }
+
+      // 2. Self-Finance / Unaided / Non-Grant / Private (checked BEFORE Aided because 'Unaided' contains 'aided')
+      if (t.includes("NON-GRANT") || t.includes("NON GRANT") || t.includes("UNAIDED") || t.includes("UN-AIDED") || t.includes("UN AIDED") ||
+          t.includes("SELF") || t.includes("SFI") || t.includes("PRIVATE") || t.includes("PVT") ||
+          t === "SF" || t === "S.F." || t === "S.F.I." || t === "3" ||
+          n.includes("SELF FINANCE") || n.includes("SELF-FINANCE") || n.includes("SELF FINANCED") || n.includes("UNAIDED")) {
+        return "Self-Finance";
+      }
+
+      // 3. Aided / Grant-in-aid
+      if (t.includes("AIDED") || t.includes("GRANT") || t === "A" || t === "GIA" || t === "2" ||
+          n.includes("AIDED") || n.includes("GRANT-IN-AID")) {
+        return "Aided";
+      }
+
+      // 4. Government
+      if (t.includes("GOV") || t.includes("STATE") || t.includes("CENTRAL") || t.includes("CONDUCTING") ||
+          t.includes("UNIVERSITY MANAGED") || t === "G" || t === "1" ||
+          n.includes("GOVT") || n.includes("GOVERNMENT") || n.startsWith("GCOE")) {
+        return "Government";
+      }
+
+      // 5. Check prefix/letter heuristics
+      if (t.startsWith("SF") || t.startsWith("SELF") || t.startsWith("UN")) return "Self-Finance";
+      if (t.startsWith("AID") || t.startsWith("GR")) return "Aided";
+      if (t.startsWith("GOV")) return "Government";
+      if (t.startsWith("AUTO")) return "Autonomous";
+
+      // 6. Name heuristics fallback
+      if (n.includes("GOVERNMENT") || n.includes("GOVT")) return "Government";
+      if (n.includes("AIDED")) return "Aided";
+      if (n.includes("PRIVATE") || n.includes("SFI")) return "Self-Finance";
+      if (n.includes("VNIT") || n.includes("AUTONOMOUS")) return "Autonomous";
+
+      return "Government";
+    }
+
+    // Configuration for different colours and types of icons per College Type
+    function getCollegeTypeConfig(type, name = "") {
+      const normalized = resolveCollegeType(type, name);
+      switch (normalized) {
+        case "Government":
+          return {
+            label: "Government",
+            color: "#1D4ED8",
+            bgClass: "bg-blue-600",
+            borderClass: "border-blue-700",
+            pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
+            icon: "fa-solid fa-landmark",
+            shapeName: "Circle Pin",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Government College">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-blue-500/50">
+                    <i class="fa-solid fa-landmark text-[11px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Aided":
+          return {
+            label: "Aided",
+            color: "#059669",
+            bgClass: "bg-emerald-600",
+            borderClass: "border-emerald-700",
+            pillClass: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+            icon: "fa-solid fa-award",
+            shapeName: "Emerald Hexagon",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Aided College">
+                  <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-emerald-400/50">
+                    <i class="fa-solid fa-award text-[12px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Self-Finance":
+          return {
+            label: "Self-Finance",
+            color: "#9333EA",
+            bgClass: "bg-purple-600",
+            borderClass: "border-purple-700",
+            pillClass: "bg-purple-100 text-purple-800 border border-purple-300",
+            icon: "fa-solid fa-graduation-cap",
+            shapeName: "Purple Diamond",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Self-Finance College">
+                  <div class="w-7 h-7 rotate-45 rounded-lg bg-gradient-to-br from-purple-500 to-purple-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-purple-400/50">
+                    <i class="fa-solid fa-graduation-cap -rotate-45 text-[10px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Autonomous":
+          return {
+            label: "Autonomous",
+            color: "#D97706",
+            bgClass: "bg-amber-500",
+            borderClass: "border-amber-600",
+            pillClass: "bg-amber-100 text-amber-900 border border-amber-300",
+            icon: "fa-solid fa-crown",
+            shapeName: "Golden Crown Badge",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Autonomous College">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-amber-400/70 ring-offset-1">
+                    <i class="fa-solid fa-crown text-[11px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        default:
+          return {
+            label: "Government",
+            color: "#1D4ED8",
+            bgClass: "bg-blue-600",
+            borderClass: "border-blue-700",
+            pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
+            icon: "fa-solid fa-landmark",
+            shapeName: "Circle Pin",
+            createMarkerHtml: (isExam) => `<div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white text-white flex items-center justify-center"><i class="fa-solid fa-landmark text-xs"></i></div>`
+          };
+      }
+    }
+
     // Render College Markers on Map
     function renderCollegePins() {
       // Clear existing markers
@@ -1263,15 +1542,15 @@
 
       filtered.forEach(col => {
         const isExam = col.isExamCentre;
-        const iconHtml = isExam
-          ? `<div class="w-8 h-8 rounded-full bg-amber-500 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs font-bold ring-2 ring-amber-400/50 hover:scale-110 transition"><i class="fa-solid fa-star text-[10px]"></i></div>`
-          : `<div class="w-7 h-7 rounded-full bg-blue-600 border-2 border-white text-white shadow-md flex items-center justify-center text-[10px] font-bold hover:scale-110 transition"><i class="fa-solid fa-building-columns text-[9px]"></i></div>`;
+        const config = getCollegeTypeConfig(col.type, col.name);
+        const iconHtml = config.createMarkerHtml(isExam);
 
         const icon = L.divIcon({
           className: "custom-marker",
           html: iconHtml,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+          popupAnchor: [0, -18]
         });
 
         const marker = L.marker([col.lat, col.lon], { icon }).addTo(map);
@@ -1279,11 +1558,12 @@
         // Rich Popup Window
         const popupContent = `
           <div class="p-1 max-w-xs">
-            <div class="flex items-center space-x-2 mb-1.5">
-              <span class="px-2 py-0.5 text-[10px] font-bold rounded ${isExam ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}">
-                ${isExam ? '★ Exam Center' : 'Affiliated College'}
+            <div class="flex items-center space-x-1.5 mb-1.5 flex-wrap gap-1">
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded flex items-center space-x-1 ${config.pillClass}">
+                <i class="${config.icon} mr-1"></i>${config.label}
               </span>
-              <span class="text-xs font-mono font-bold text-slate-500">Code: ${col.code}</span>
+              ${isExam ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-800 border border-red-200">★ Exam Center</span>' : ''}
+              <span class="text-xs font-mono font-bold text-slate-500 ml-auto">Code: ${col.code}</span>
             </div>
             <h4 class="font-bold text-slate-900 text-xs leading-tight mb-1">${col.name}</h4>
             <p class="text-[11px] text-slate-600 mb-1"><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${col.district} District</p>
@@ -1291,7 +1571,7 @@
               <span class="text-slate-600">Seating Capacity:</span>
               <span class="font-bold text-blue-700">${col.seatingCapacity.toLocaleString()} seats</span>
             </div>
-            <p class="text-[10px] text-slate-500 mb-2 line-clamp-2"><strong>Streams:</strong> ${col.branches}</p>
+            <p class="text-[10px] text-slate-500 mb-2 line-clamp-2"><strong>Streams:</strong> ${col.branches || 'General Engineering & Technology'}</p>
             <div class="flex space-x-1.5 pt-1 border-t border-slate-100">
               <button onclick="setAsProximityCenter(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded shadow-xs text-center">
                 Radius Center
@@ -1339,20 +1619,50 @@
       return true;
     }
 
-    // Filter Logic
+    // Filter Logic supporting College Types, Exam status, Streams, Capacity, Boundary, and Search query
     function getFilteredColleges() {
       return colleges.filter(col => {
+        const colType = resolveCollegeType(col.type, col.name);
+        const matchesType = (selectedTypeFilter === "ALL") || (colType.toLowerCase() === selectedTypeFilter.toLowerCase());
         const matchesExam = examOnlyFilter ? col.isExamCentre : true;
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery = !q || 
           col.name.toLowerCase().includes(q) || 
           col.code.toLowerCase().includes(q) || 
           col.district.toLowerCase().includes(q) ||
+          colType.toLowerCase().includes(q) ||
           (col.branches && col.branches.toLowerCase().includes(q));
         const matchesCap = minCapacityFilter > 0 ? (col.seatingCapacity >= minCapacityFilter) : true;
         const matchesStr = matchesStream(col.branches, currentStreamFilter);
         const matchesBoundary = filterBoundaryOnly ? isCollegeInBoundary(col) : true;
-        return matchesExam && matchesQuery && matchesCap && matchesStr && matchesBoundary;
+        return matchesType && matchesExam && matchesQuery && matchesCap && matchesStr && matchesBoundary;
+      });
+    }
+
+    function onTypeFilterChanged(val) {
+      selectedTypeFilter = val;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function filterByType(type) {
+      selectedTypeFilter = type;
+      const selectEl = document.getElementById("college-type-filter");
+      if (selectEl) selectEl.value = type;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function updateLegendActiveState() {
+      document.querySelectorAll(".legend-item").forEach(item => {
+        const itemType = item.getAttribute("data-type");
+        if (selectedTypeFilter === "ALL" || selectedTypeFilter.toLowerCase() === (itemType || "").toLowerCase()) {
+          item.classList.remove("opacity-30");
+        } else {
+          item.classList.add("opacity-30");
+        }
       });
     }
 
@@ -1430,15 +1740,19 @@
       }
 
       filtered.forEach(col => {
+        const config = getCollegeTypeConfig(col.type, col.name);
         const item = document.createElement("div");
         item.className = "p-2.5 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl transition cursor-pointer";
         item.onclick = () => focusCollege(col.id);
         item.innerHTML = `
           <div class="flex items-start justify-between">
             <div class="flex-1 pr-2">
-              <div class="flex items-center space-x-1.5 mb-1">
+              <div class="flex items-center space-x-1.5 mb-1 flex-wrap gap-1">
                 <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">${col.code}</span>
-                ${col.isExamCentre ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">★ Exam Center</span>' : ''}
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-1 ${config.pillClass}">
+                  <i class="${config.icon} mr-1 text-[8px]"></i>${config.label}
+                </span>
+                ${col.isExamCentre ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-200">★ Exam Center</span>' : ''}
               </div>
               <h4 class="font-bold text-slate-900 text-xs leading-tight mb-0.5">${col.name}</h4>
               <p class="text-[10px] text-slate-500">${col.district} District • Cap: ${col.seatingCapacity.toLocaleString()} seats</p>
@@ -1790,11 +2104,13 @@
           // Fifth column (index 4) = Latitude, Sixth column (index 5) = Longitude
           let latColIndex = 4;
           let lonColIndex = 5;
+          let typeColIndex = 3; // Column 4 (0-indexed 3)
+          let capacityColIndex = 6; // Column 7 (0-indexed 6)
           let codeColIndex = -1;
           let nameColIndex = -1;
           let districtColIndex = -1;
-          let capacityColIndex = -1;
           let examColIndex = -1;
+          let branchColIndex = -1;
 
           if (!isFirstRowData && json.length > 1) {
             startRow = 1;
@@ -1806,9 +2122,16 @@
 
             codeColIndex = headers.findIndex(h => h.includes("code"));
             districtColIndex = headers.findIndex(h => h.includes("district") || h.includes("zone") || h.includes("region"));
-            nameColIndex = headers.findIndex(h => (h.includes("name") || h.includes("college") || h.includes("institute")) && !h.includes("code") && !h.includes("district"));
+            nameColIndex = headers.findIndex(h => (h.includes("name") || h.includes("college") || h.includes("institute")) && !h.includes("code") && !h.includes("district") && !h.includes("type"));
             if (nameColIndex === -1) nameColIndex = headers.findIndex(h => h.includes("name") || h.includes("college"));
-            capacityColIndex = headers.findIndex(h => h.includes("cap") || h.includes("seat"));
+
+            const hType = headers.findIndex(h => h === "type" || h.includes("type") || h.includes("category") || h.includes("management") || h.includes("status"));
+            if (hType !== -1) typeColIndex = hType;
+
+            const hCap = headers.findIndex(h => h.includes("capacity") || h.includes("seating") || h.includes("seat") || h.includes("intake") || h.includes("student"));
+            if (hCap !== -1) capacityColIndex = hCap;
+
+            branchColIndex = headers.findIndex(h => h.includes("branch") || h.includes("stream") || h.includes("course"));
             examColIndex = headers.findIndex(h => h.includes("exam"));
           } else {
             startRow = 0;
@@ -1826,13 +2149,14 @@
 
             // If coordinates were not found in 5th/6th column, scan other numeric columns
             if (rawLat === null || rawLon === null) {
-              if (row.length > 6 && rawLat === null) rawLat = parseCoordinateValue(row[6]);
+              if (row.length > 6 && rawLat === null && capacityColIndex !== 6) rawLat = parseCoordinateValue(row[6]);
               if (row.length > 7 && rawLon === null) rawLon = parseCoordinateValue(row[7]);
             }
 
             // Fallback scan: if still null, find any valid coordinates in row
             if (rawLat === null || rawLon === null) {
               for (let c = 0; c < row.length; c++) {
+                if (c === typeColIndex || c === capacityColIndex) continue; // Don't pick from Type or Seating Capacity!
                 const val = parseCoordinateValue(row[c]);
                 if (val !== null && val >= 8 && val <= 38 && rawLat === null) {
                   rawLat = val;
@@ -1842,11 +2166,7 @@
               }
             }
 
-            // 2. Coordinate Sanity & Auto-Swap Check:
-            // In India (Maharashtra/Vidarbha):
-            // Latitude is ~18° to 22° N (e.g. 21.1458)
-            // Longitude is ~73° to 81° E (e.g. 79.0882)
-            // If lat > 50 and lon < 45, the columns are inverted (Longitude in col 5, Latitude in col 6)
+            // Coordinate Sanity & Auto-Swap Check (Lat ~15-25, Lon ~72-85 in India)
             if (rawLat !== null && rawLon !== null) {
               if (rawLat > 50.0 && rawLon < 45.0) {
                 const tmp = rawLat;
@@ -1855,43 +2175,33 @@
               }
             }
 
-            // Default fallback if row is completely missing coordinates
             const lat = rawLat !== null ? rawLat : (21.1458 + (i % 10) * 0.01);
             const lon = rawLon !== null ? rawLon : (79.0882 + (i % 10) * 0.01);
 
-            // 3. Extract metadata (code, name, district, capacity)
+            // 2. Extract metadata (code, name, district)
             let code = "";
             let name = "";
             let district = "";
-            let capacity = 1500;
             let isExam = false;
 
             if (codeColIndex !== -1 && row[codeColIndex]) code = String(row[codeColIndex]).trim();
             if (nameColIndex !== -1 && row[nameColIndex]) name = String(row[nameColIndex]).trim();
             if (districtColIndex !== -1 && row[districtColIndex]) district = String(row[districtColIndex]).trim();
-            if (capacityColIndex !== -1 && row[capacityColIndex]) capacity = parseInt(row[capacityColIndex]) || 1500;
-            if (examColIndex !== -1 && row[examColIndex]) {
-              const eStr = String(row[examColIndex]).toLowerCase();
-              isExam = eStr.includes("yes") || eStr.includes("true") || eStr === "1";
-            }
 
-            // Intelligent heuristic for remaining columns (Col 0, 1, 2, 3)
+            // Intelligent heuristic for remaining metadata columns (Col 0, 1, 2)
             if (!code || !name || !district) {
               const col0 = String(row[0] || "").trim();
               const col1 = String(row[1] || "").trim();
               const col2 = String(row[2] || "").trim();
-              const col3 = String(row[3] || "").trim();
 
               const col0HasDigits = /\d{3,}/.test(col0);
               const col1HasDigits = /\d{3,}/.test(col1);
 
               if (col0HasDigits && !col1HasDigits) {
-                // Col 0: Code, Col 1: Name, Col 2: District
                 if (!code) code = col0;
                 if (!name) name = col1;
                 if (!district) district = col2 || "Nagpur";
               } else if (!col0HasDigits && col1HasDigits) {
-                // Col 0: District, Col 1: Code, Col 2: Name
                 if (!district) district = col0;
                 if (!code) code = col1;
                 if (!name) name = col2;
@@ -1900,25 +2210,74 @@
                 if (!name) name = col1 || `College ${i + 1}`;
                 if (!district) district = col2 || "Nagpur";
               }
-
-              if (capacityColIndex === -1) {
-                const pCap = parseInt(col3);
-                if (!isNaN(pCap) && pCap > 100) capacity = pCap;
-              }
             }
 
             if (!code) code = `COL-${1000 + i}`;
             if (!name) name = `College ${i + 1}`;
             if (!district) district = "Nagpur";
 
-            const branches = String(row[3] || "General Engineering, Technology").trim();
+            // 3. Extract College Type from Column 4 titled 'type' (index 3 or typeColIndex)
+            let rawType = "";
+            if (typeColIndex !== -1 && row[typeColIndex] !== undefined && row[typeColIndex] !== null && String(row[typeColIndex]).trim() !== "") {
+              rawType = String(row[typeColIndex]).replace(/\u00A0/g, " ").trim();
+            }
+            if (!rawType && row.length > 3 && row[3] !== undefined && row[3] !== null && String(row[3]).trim() !== "") {
+              rawType = String(row[3]).replace(/\u00A0/g, " ").trim();
+            }
+            if ((!rawType || !isCollegeTypeString(rawType)) && row.length > 4 && row[4] !== undefined && row[4] !== null) {
+              const candidate = String(row[4]).replace(/\u00A0/g, " ").trim();
+              if (isCollegeTypeString(candidate)) rawType = candidate;
+            }
+            if (!rawType || !isCollegeTypeString(rawType)) {
+              for (let c = 0; c < row.length; c++) {
+                const candidate = String(row[c] || "").replace(/\u00A0/g, " ").trim();
+                if (isCollegeTypeString(candidate)) {
+                  rawType = candidate;
+                  break;
+                }
+              }
+            }
+            const collegeType = resolveCollegeType(rawType, name);
+
+            // 4. Extract Seating Capacity from Column 7 (index 6 or capacityColIndex)
+            let capacity = 1500;
+            let rawCapStr = "";
+            if (capacityColIndex !== -1 && row[capacityColIndex] !== undefined && row[capacityColIndex] !== null && String(row[capacityColIndex]).trim() !== "") {
+              rawCapStr = String(row[capacityColIndex]).trim();
+            }
+            if (!rawCapStr && row.length > 6 && row[6] !== undefined && row[6] !== null && String(row[6]).trim() !== "") {
+              rawCapStr = String(row[6]).trim();
+            }
+            if (!rawCapStr && row.length > 7 && row[7] !== undefined && row[7] !== null && String(row[7]).trim() !== "") {
+              rawCapStr = String(row[7]).trim();
+            }
+            const cleanCapDigits = rawCapStr.replace(/[^0-9]/g, "");
+            if (cleanCapDigits) {
+              const parsedCap = parseInt(cleanCapDigits);
+              if (!isNaN(parsedCap) && parsedCap > 0) {
+                capacity = parsedCap;
+              }
+            }
+
+            if (examColIndex !== -1 && row[examColIndex]) {
+              const eStr = String(row[examColIndex]).toLowerCase();
+              isExam = eStr.includes("yes") || eStr.includes("true") || eStr === "1";
+            }
             if (capacity >= 2000 && !isExam) isExam = true;
+
+            let branches = "General Engineering, Technology";
+            if (branchColIndex !== -1 && row[branchColIndex]) {
+              branches = String(row[branchColIndex]).trim();
+            } else if (row.length > 7 && typeof row[7] === 'string' && isNaN(parseInt(row[7])) && String(row[7]).trim() !== '') {
+              branches = String(row[7]).trim();
+            }
 
             parsed.push({
               id: Date.now() + i,
               code,
               name,
               district,
+              type: collegeType,
               seatingCapacity: capacity,
               branches,
               isExamCentre: isExam,
@@ -1934,7 +2293,24 @@
 
           parsedExcelData = parsed;
           document.getElementById("confirm-upload-btn").disabled = false;
-          showUploadStatus(`✓ Verified ${parsed.length} colleges with Lat/Lon from Columns 5 & 6! Click 'Import Colleges' below.`, false);
+
+          // Compute type segregation stats
+          const counts = { Government: 0, Aided: 0, "Self-Finance": 0, Autonomous: 0 };
+          parsed.forEach(c => {
+            if (counts[c.type] !== undefined) counts[c.type]++;
+            else counts[c.type] = 1;
+          });
+
+          showUploadStatus(
+            `✓ Successfully verified & segregated ${parsed.length} colleges!\n` +
+            `• 🏛 Government: ${counts["Government"] || 0} (Royal Blue)\n` +
+            `• 🎖 Aided: ${counts["Aided"] || 0} (Emerald Green)\n` +
+            `• 🎓 Self-Finance: ${counts["Self-Finance"] || 0} (Vivid Purple)\n` +
+            `• 👑 Autonomous: ${counts["Autonomous"] || 0} (Amber Gold)\n` +
+            `• 🪑 Seating Capacity taken from Column 7 (e.g. ${parsed[0]?.seatingCapacity} seats for ${parsed[0]?.name}).\n` +
+            `Click 'Import Colleges' below to display them on the map.`,
+            false
+          );
         } catch (err) {
           showUploadStatus("Failed to parse Excel file: " + err.message, true);
         }
@@ -2436,6 +2812,7 @@
       const code = document.getElementById("form-code").value.trim();
       const name = document.getElementById("form-name").value.trim();
       const district = document.getElementById("form-district").value.trim();
+      const type = document.getElementById("form-type") ? document.getElementById("form-type").value : "Government";
       const capacity = parseInt(document.getElementById("form-capacity").value);
       const lat = parseFloat(document.getElementById("form-lat").value);
       const lon = parseFloat(document.getElementById("form-lon").value);
@@ -2447,6 +2824,7 @@
         code,
         name,
         district,
+        type: resolveCollegeType(type, name),
         seatingCapacity: capacity,
         branches,
         isExamCentre: isExam,

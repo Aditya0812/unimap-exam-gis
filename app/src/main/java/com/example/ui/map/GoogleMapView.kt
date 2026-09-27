@@ -289,29 +289,61 @@ private fun buildGoogleMapHtml(): String {
             var radiusCircleLayer = L.layerGroup().addTo(map);
             var routeLayer = L.layerGroup().addTo(map);
 
+            function getTypeColor(type) {
+                var t = (type || '').toUpperCase();
+                if (t.indexOf('AUTO') !== -1) return '#D97706';
+                if (t.indexOf('NON-GRANT') !== -1 || t.indexOf('UNAIDED') !== -1 || t.indexOf('SELF') !== -1 || t.indexOf('SFI') !== -1 || t.indexOf('PRIVATE') !== -1 || t === 'SF') return '#9333EA';
+                if (t.indexOf('AIDED') !== -1 || t.indexOf('GRANT') !== -1 || t === 'A') return '#059669';
+                return '#1D4ED8';
+            }
+
             function createCollegeIcon(col, isSelected) {
                 var isExam = col.isExamCentre;
-                var color = isSelected ? '#EF4444' : (isExam ? '#EAB308' : '#2563EB');
-                var size = isSelected ? 34 : (isExam ? 30 : 26);
-                var symbol = isExam ? '★' : '🏛';
+                var t = (col.type || 'Government').toUpperCase();
+                var color = '#1D4ED8';
+                var symbol = '🏛';
+                var shapeStyle = 'border-radius: 50%;';
+                var isDiamond = false;
 
-                var html = '<div style="' +
-                    'background-color: ' + color + ';' +
-                    'width: ' + size + 'px; height: ' + size + 'px;' +
-                    'border-radius: 50% 50% 50% 0;' +
-                    'transform: rotate(-45deg);' +
-                    'display: flex; align-items: center; justify-content: center;' +
-                    'border: 2px solid #ffffff;' +
-                    'box-shadow: 0 3px 8px rgba(0,0,0,0.35);' +
-                    '">' +
-                    '<span style="transform: rotate(45deg); color: #ffffff; font-size: ' + (size * 0.45) + 'px; font-weight: bold;">' + symbol + '</span>' +
+                if (t.indexOf('AUTO') !== -1) {
+                    color = '#D97706'; // Golden Amber
+                    symbol = '👑';
+                    shapeStyle = 'border-radius: 50%; border: 2px solid #FEF3C7;';
+                } else if (t.indexOf('NON-GRANT') !== -1 || t.indexOf('UNAIDED') !== -1 || t.indexOf('SELF') !== -1 || t.indexOf('SFI') !== -1 || t.indexOf('PRIVATE') !== -1 || t === 'SF') {
+                    color = '#9333EA'; // Vivid Purple
+                    symbol = '🎓';
+                    shapeStyle = 'border-radius: 6px; transform: rotate(45deg);';
+                    isDiamond = true;
+                } else if (t.indexOf('AIDED') !== -1 || t.indexOf('GRANT') !== -1 || t === 'A') {
+                    color = '#059669'; // Emerald Green
+                    symbol = '🎖';
+                    shapeStyle = 'border-radius: 8px;';
+                } else {
+                    color = '#1D4ED8'; // Royal Blue
+                    symbol = '🏛';
+                    shapeStyle = 'border-radius: 50%;';
+                }
+
+                if (isSelected) {
+                    color = '#EF4444';
+                }
+
+                var size = isSelected ? 34 : 28;
+                var examBadge = isExam ? '<span style="position: absolute; top: -5px; right: -5px; background: #DC2626; color: #FFF; width: 14px; height: 14px; border-radius: 50%; font-size: 8px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #FFF; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10;">★</span>' : '';
+
+                var html = '<div style="position: relative; width: ' + size + 'px; height: ' + size + 'px;">' +
+                    '<div style="background-color: ' + color + '; width: ' + size + 'px; height: ' + size + 'px; ' + shapeStyle + ' display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); cursor: pointer;">' +
+                    '<span style="' + (isDiamond ? 'transform: rotate(-45deg); ' : '') + 'color: #ffffff; font-size: ' + (size * 0.46) + 'px; line-height: 1;">' + symbol + '</span>' +
+                    '</div>' +
+                    examBadge +
                     '</div>';
 
                 return L.divIcon({
                     html: html,
                     className: '',
                     iconSize: [size, size],
-                    iconAnchor: [size / 2, size]
+                    iconAnchor: [size / 2, size / 2],
+                    popupAnchor: [0, -size / 2]
                 });
             }
 
@@ -457,8 +489,8 @@ private fun buildGoogleMapHtml(): String {
                         var popupHtml = '<div class="college-title">' + col.name + '</div>' +
                             '<div class="college-subtitle">Code: <b>' + col.code + '</b> • ' + col.district + '</div>' +
                             '<div class="badge-row">' +
+                            '<span class="badge" style="background: ' + getTypeColor(col.type) + '; color: #ffffff; font-weight: bold; border-radius: 4px; padding: 2px 6px;">' + (col.type || 'Government') + '</span>' +
                             (col.isExamCentre ? '<span class="badge badge-exam">★ Exam Centre</span>' : '') +
-                            '<span class="badge badge-type">' + col.type + '</span>' +
                             '</div>' +
                             '<div style="font-size: 11px; color: #475569; margin-bottom: 6px;">Seating Capacity: <b>' + col.capacity + '</b></div>' +
                             '<button class="select-btn" onclick="selectCollegeFromJs(' + col.id + ')">Select College</button>';

@@ -150,7 +150,14 @@ const server = http.createServer(async (req, res) => {
         const cleanUser = String(username || '').trim().toLowerCase();
         const cleanPass = String(password || '').trim();
 
-        const found = users.find(u => u.username.toLowerCase() === cleanUser && u.password === cleanPass);
+        const envAdminPass = process.env.ADMIN_PASSWORD;
+        let found = users.find(u => u.username.toLowerCase() === cleanUser && u.password === cleanPass);
+        
+        // Allow overriding admin password securely via Vercel Environment Variables
+        if (!found && envAdminPass && cleanPass === envAdminPass && (cleanUser === 'admin' || cleanUser === 'satish')) {
+          found = { username: cleanUser, role: 'admin', name: cleanUser === 'satish' ? 'Satish (Admin)' : 'System Administrator' };
+        }
+
         if (found) {
           const isAdmin = (found.role === 'admin') || (found.username.toLowerCase() === 'satish');
           sendJSON(res, 200, {

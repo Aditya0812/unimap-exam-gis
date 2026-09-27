@@ -36,32 +36,40 @@ class CollegeRepository(
     val transitAdvisoryAlert: StateFlow<String?> = _transitAdvisoryAlert.asStateFlow()
 
     suspend fun initializeDefaultsIfNeeded() {
-        // Initialize Default Allowed Credentials if empty or incomplete
-        val existingAdmin = authDao.getCredential("admin")
-        if (existingAdmin == null) {
-            val list = mutableListOf<UserCredential>()
+        // Initialize Default Allowed Credentials if empty
+        if (authDao.getCount() == 0) {
+            val adminSalt = CryptoUtils.generateSalt()
+            val controllerSalt = CryptoUtils.generateSalt()
+            val transitSalt = CryptoUtils.generateSalt()
 
-            fun createCred(u: String, p: String, name: String, role: String): UserCredential {
-                val s = CryptoUtils.generateSalt()
-                return UserCredential(
-                    username = u.lowercase().trim(),
-                    passwordHash = CryptoUtils.hashPassword(p, s),
-                    salt = s,
-                    fullName = name,
-                    role = role,
-                    allowedByCreator = true
+            authDao.insertAll(
+                listOf(
+                    UserCredential(
+                        username = "admin@university.edu",
+                        passwordHash = CryptoUtils.hashPassword("UniAdmin@2026", adminSalt),
+                        salt = adminSalt,
+                        fullName = "Prof. Arvind Sharma (Registrar)",
+                        role = "Master Administrator",
+                        allowedByCreator = true
+                    ),
+                    UserCredential(
+                        username = "controller@exams.edu",
+                        passwordHash = CryptoUtils.hashPassword("ExamPass#2026", controllerSalt),
+                        salt = controllerSalt,
+                        fullName = "Dr. Neha Verma (Controller of Exams)",
+                        role = "Exam Controller",
+                        allowedByCreator = true
+                    ),
+                    UserCredential(
+                        username = "transit@logistics.edu",
+                        passwordHash = CryptoUtils.hashPassword("TransitSafe!2026", transitSalt),
+                        salt = transitSalt,
+                        fullName = "Rajesh Malhotra (Chief Transit Officer)",
+                        role = "Transit Logistics Officer",
+                        allowedByCreator = true
+                    )
                 )
-            }
-
-            list.add(createCred("admin", "admin123", "System Administrator", "Master Administrator"))
-            list.add(createCred("satish", "exam2026", "Satish (Admin)", "Master Administrator"))
-            list.add(createCred("officer", "officer2026", "Exam Coordinator", "Exam Controller"))
-            list.add(createCred("viewer", "viewer123", "Guest Viewer", "Viewer"))
-            list.add(createCred("admin@university.edu", "UniAdmin@2026", "Prof. Arvind Sharma (Registrar)", "Master Administrator"))
-            list.add(createCred("controller@exams.edu", "ExamPass#2026", "Dr. Neha Verma (Controller of Exams)", "Exam Controller"))
-            list.add(createCred("transit@logistics.edu", "TransitSafe!2026", "Rajesh Malhotra (Chief Transit Officer)", "Transit Logistics Officer"))
-
-            authDao.insertAll(list)
+            )
         }
     }
 

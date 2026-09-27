@@ -1260,11 +1260,46 @@ private fun DrawScope.drawCollegeMarker(
     } else {
         if (college.isExamCentre) 13f else 10.5f
     }
-    drawCircle(
-        color = managementTypeColor,
-        radius = pinRadius,
-        center = point
-    )
+    // Outer Pin Drop Body with distinct geometric shape per College Type
+    when (college.managementType) {
+        CollegeType.GOVERNMENT -> {
+            drawCircle(
+                color = managementTypeColor,
+                radius = pinRadius,
+                center = point
+            )
+        }
+        CollegeType.AIDED -> {
+            drawRoundRect(
+                color = managementTypeColor,
+                topLeft = androidx.compose.ui.geometry.Offset(point.x - pinRadius, point.y - pinRadius),
+                size = androidx.compose.ui.geometry.Size(pinRadius * 2f, pinRadius * 2f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(pinRadius * 0.35f, pinRadius * 0.35f)
+            )
+        }
+        CollegeType.SELF_FINANCE -> {
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(point.x, point.y - pinRadius * 1.15f)
+                lineTo(point.x + pinRadius * 1.15f, point.y)
+                lineTo(point.x, point.y + pinRadius * 1.15f)
+                lineTo(point.x - pinRadius * 1.15f, point.y)
+                close()
+            }
+            drawPath(path, color = managementTypeColor)
+        }
+        CollegeType.AUTONOMOUS -> {
+            drawCircle(
+                color = Color(0xFFFEF3C7).copy(alpha = alpha),
+                radius = pinRadius + 2.5f,
+                center = point
+            )
+            drawCircle(
+                color = managementTypeColor,
+                radius = pinRadius,
+                center = point
+            )
+        }
+    }
 
     // Inner White Pin Core
     val innerRadius = if (college.isExamCentre) 6.5f else 5f

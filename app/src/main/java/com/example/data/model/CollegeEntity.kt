@@ -19,9 +19,14 @@ enum class CollegeType(
             val s = str.trim().uppercase()
             return when {
                 s.contains("AUTO") -> AUTONOMOUS
-                s.contains("AIDED") || s.contains("GRANT") -> AIDED
-                s.contains("SELF") || s.contains("SFI") || s.contains("PRIVATE") || s.contains("UNAIDED") -> SELF_FINANCE
-                s.contains("GOV") -> GOVERNMENT
+                s.contains("NON-GRANT") || s.contains("NON GRANT") || s.contains("UNAIDED") ||
+                s.contains("UN-AIDED") || s.contains("SELF") || s.contains("SFI") ||
+                s.contains("PRIVATE") || s.contains("PVT") || s == "SF" || s == "S.F." -> SELF_FINANCE
+                s.contains("AIDED") || s.contains("GRANT") || s == "A" || s == "GIA" -> AIDED
+                s.contains("GOV") || s.contains("STATE") || s.contains("CENTRAL") || s == "G" -> GOVERNMENT
+                s.startsWith("SF") || s.startsWith("SELF") || s.startsWith("UN") -> SELF_FINANCE
+                s.startsWith("AID") || s.startsWith("GR") -> AIDED
+                s.startsWith("GOV") -> GOVERNMENT
                 else -> GOVERNMENT
             }
         }

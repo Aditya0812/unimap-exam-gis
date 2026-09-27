@@ -159,46 +159,15 @@ class ExampleUnitTest {
       )
     )
 
-    // Synthetic boundaries are disabled (emptyList) per user requirement in favor of user-inserted KMZ files
-    val syntheticBoundaries = com.example.ui.map.DistrictBoundaryManager.computeBoundaries(colleges)
-    assertTrue(syntheticBoundaries.isEmpty())
+    val boundaries = com.example.ui.map.DistrictBoundaryManager.computeBoundaries(colleges)
+    assertEquals(2, boundaries.size)
 
-    // Test imported boundary processing and point-in-polygon matching
-    val testBoundaries = listOf(
-      com.example.ui.map.DistrictBoundary(
-        name = "Varanasi",
-        polygon = listOf(
-          Pair(25.20, 82.80),
-          Pair(25.45, 82.80),
-          Pair(25.45, 83.15),
-          Pair(25.20, 83.15)
-        ),
-        centerLat = 25.32,
-        centerLon = 82.98,
-        color = androidx.compose.ui.graphics.Color.Blue
-      ),
-      com.example.ui.map.DistrictBoundary(
-        name = "Prayagraj",
-        polygon = listOf(
-          Pair(25.30, 81.70),
-          Pair(25.55, 81.70),
-          Pair(25.55, 82.00),
-          Pair(25.30, 82.00)
-        ),
-        centerLat = 25.43,
-        centerLon = 81.85,
-        color = androidx.compose.ui.graphics.Color.Green
-      )
-    )
-
-    val updatedBoundaries = com.example.ui.map.DistrictBoundaryManager.updateCollegeCounts(testBoundaries, colleges)
-    assertEquals(2, updatedBoundaries.size)
-
-    val varanasi = updatedBoundaries.find { it.name.equals("Varanasi", ignoreCase = true) }
+    val varanasi = boundaries.find { it.name.equals("Varanasi", ignoreCase = true) }
     assertNotNull(varanasi)
     assertEquals(2, varanasi!!.collegeCount)
+    assertTrue(varanasi.polygon.size >= 3) // Polygon has valid vertices
 
-    val prayagraj = updatedBoundaries.find { it.name.equals("Prayagraj", ignoreCase = true) }
+    val prayagraj = boundaries.find { it.name.equals("Prayagraj", ignoreCase = true) }
     assertNotNull(prayagraj)
     assertEquals(1, prayagraj!!.collegeCount)
   }
