@@ -1,0 +1,6 @@
+{
+  "name": "UniMap",
+  "description": "Interactive college GIS mapping, 6-column Excel data upload, KMZ district boundary import and layer shading, branch filtering, proximity radius analysis, and exam transit ETA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

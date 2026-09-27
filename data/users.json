@@ -1,0 +1,26 @@
+[
+  {
+    "username": "admin",
+    "password": "admin123",
+    "role": "admin",
+    "name": "System Administrator"
+  },
+  {
+    "username": "satish",
+    "password": "exam2026",
+    "role": "admin",
+    "name": "Satish (Admin)"
+  },
+  {
+    "username": "officer",
+    "password": "officer2026",
+    "role": "editor",
+    "name": "Exam Coordinator"
+  },
+  {
+    "username": "viewer",
+    "password": "viewer123",
+    "role": "viewer",
+    "name": "Guest Viewer"
+  }
+]

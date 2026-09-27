@@ -1,0 +1,2842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMap - University GIS & Exam Logistics</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1E40AF',
+            primaryHover: '#1D4ED8',
+            examGold: '#F59E0B',
+            successGreen: '#10B981',
+            darkSurface: '#0F172A',
+            panelSurface: '#FFFFFF'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- SheetJS (Excel .xlsx, .xls, .csv parsing) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- JSZip (for KMZ decompression) -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+      z-index: 10;
+    }
+    .custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col h-screen overflow-hidden">
+
+  <!-- TOP NAVIGATION / TOOLBAR -->
+  <header id="top-header" class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-sm z-30 flex-wrap gap-2">
+    <!-- Brand / Title -->
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+        <i class="fa-solid fa-graduation-cap text-lg"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="font-bold text-slate-900 text-base leading-tight">UniMap GIS</h1>
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">Web Edition</span>
+        </div>
+        <p class="text-xs text-slate-500 hidden sm:block">Affiliated Colleges & Exam Center GIS Platform</p>
+      </div>
+    </div>
+
+    <!-- Search Bar & Filters -->
+    <div class="flex items-center space-x-2 flex-1 max-w-xl mx-2">
+      <div class="relative w-full">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i>
+        </span>
+        <input 
+          type="text" 
+          id="search-input" 
+          placeholder="Search college name, code, or district..." 
+          class="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-300 focus:border-blue-500 rounded-lg outline-none transition"
+        />
+        <button id="clear-search-btn" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 hidden">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+
+      <!-- College Type Filter Dropdown (Column 4 'type') -->
+      <select 
+        id="college-type-filter" 
+        onchange="onTypeFilterChanged(this.value)"
+        class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-700 outline-none hover:bg-slate-50 focus:border-blue-500 transition cursor-pointer shadow-xs"
+        title="Filter by College Management Type"
+      >
+        <option value="ALL">All College Types</option>
+        <option value="Government">🏛️ Government</option>
+        <option value="Aided">🎖️ Aided</option>
+        <option value="Self-Finance">🎓 Self-Finance</option>
+        <option value="Autonomous">👑 Autonomous</option>
+      </select>
+
+      <!-- Quick Exam Centre Filter Toggle -->
+      <button 
+        id="exam-filter-btn" 
+        class="px-2.5 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center space-x-1.5 whitespace-nowrap transition"
+        title="Toggle Exam Centers Only"
+      >
+        <i class="fa-solid fa-star text-amber-500"></i>
+        <span class="hidden md:inline">Exam Centers Only</span>
+      </button>
+    </div>
+
+    <!-- Primary Action Buttons -->
+    <div class="flex items-center space-x-1.5">
+      <!-- Upload Excel / CSV -->
+      <button 
+        onclick="openModal('upload-modal')" 
+        class="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm flex items-center space-x-1.5 transition"
+      >
+        <i class="fa-solid fa-file-excel"></i>
+        <span class="hidden sm:inline">Upload Excel</span>
+      </button>
+
+      <!-- Insert KMZ / KML -->
+      <button 
+        onclick="openModal('kmz-modal')" 
+        class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center space-x-1.5 transition"
+      >
+        <i class="fa-solid fa-draw-polygon"></i>
+        <span class="hidden sm:inline">Insert KMZ</span>
+      </button>
+
+      <!-- Proximity Circle Tool -->
+      <button 
+        id="proximity-toggle-btn"
+        onclick="toggleProximityPanel()" 
+        class="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center space-x-1.5 transition"
+      >
+        <i class="fa-solid fa-circle-dot"></i>
+        <span class="hidden sm:inline">Radius Tool</span>
+      </button>
+
+      <!-- Transit ETA Planner -->
+      <button 
+        onclick="openModal('transit-modal')" 
+        class="px-3 py-1.5 text-xs font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-lg transition"
+        title="Exam Route & Transit ETA"
+      >
+        <i class="fa-solid fa-route text-blue-600"></i>
+      </button>
+
+      <!-- College Directory Drawer -->
+      <button 
+        onclick="toggleSidebar()" 
+        class="px-3 py-1.5 text-xs font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-lg transition"
+        title="College List & Directory"
+      >
+        <i class="fa-solid fa-list text-slate-600"></i>
+      </button>
+
+      <!-- Divider -->
+      <div class="h-5 w-px bg-slate-200 mx-1"></div>
+
+      <!-- User Profile & Credentials Widget -->
+      <div id="user-profile-widget" class="flex items-center space-x-1.5">
+        <button 
+          id="manage-users-btn"
+          onclick="openCredentialsModal()" 
+          class="hidden px-2.5 py-1.5 text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg shadow-xs flex items-center space-x-1.5 transition"
+          title="Manage Login Credentials & Permissions"
+        >
+          <i class="fa-solid fa-key text-[11px]"></i>
+          <span class="hidden md:inline">Credentials</span>
+        </button>
+
+        <div class="flex items-center space-x-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+          <i class="fa-solid fa-circle-user text-slate-500"></i>
+          <span id="user-display-name" class="font-bold text-slate-800 text-[11px]">Guest</span>
+          <span id="user-role-badge" class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800">Admin</span>
+        </div>
+
+        <button 
+          onclick="logoutUser()" 
+          class="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Log Out"
+        >
+          <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT: MAP & FLOATING PANELS -->
+  <div class="relative flex-1 w-full h-full overflow-hidden">
+    
+    <!-- LEAFLET MAP CONTAINER -->
+    <div id="map"></div>
+
+    <!-- FLOATING MAP CONTROLS (Top Right) -->
+    <div class="absolute top-4 right-4 z-20 flex flex-col space-y-2">
+      <!-- Fullscreen Toggle Button -->
+      <button 
+        id="fullscreen-btn" 
+        onclick="toggleFullScreen()" 
+        class="w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-lg border border-slate-200 flex items-center justify-center transition"
+        title="Full Screen Mode"
+      >
+        <i class="fa-solid fa-expand text-sm"></i>
+      </button>
+
+      <!-- Map Layer Switcher (Streets, Satellite, Terrain, Clean) -->
+      <button 
+        onclick="cycleTileLayer()" 
+        class="w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-lg border border-slate-200 flex items-center justify-center transition"
+        title="Switch Map Style (Streets / Satellite / Topo / Carto)"
+      >
+        <i class="fa-solid fa-layer-group text-sm"></i>
+      </button>
+
+      <!-- Reset / Center Map -->
+      <button 
+        onclick="resetMapView()" 
+        class="w-10 h-10 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-lg border border-slate-200 flex items-center justify-center transition"
+        title="Center Map View"
+      >
+        <i class="fa-solid fa-crosshairs text-sm"></i>
+      </button>
+    </div>
+
+    <!-- FULL SCREEN EXIT CHIP (Shown when full screen is active) -->
+    <div id="fullscreen-chip" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 hidden">
+      <button 
+        onclick="toggleFullScreen()" 
+        class="px-4 py-1.5 bg-blue-600/95 hover:bg-blue-700 text-white rounded-full shadow-xl text-xs font-bold flex items-center space-x-2 transition"
+      >
+        <i class="fa-solid fa-compress text-xs"></i>
+        <span>Full Screen Map • Click to Exit</span>
+      </button>
+    </div>
+
+    <!-- COLLEGE TYPE MAP LEGEND (Bottom Left Floating) -->
+    <div id="map-legend" class="absolute bottom-6 left-4 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/90 p-3 text-xs w-64 transition-all">
+      <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100">
+        <div class="flex items-center space-x-1.5">
+          <i class="fa-solid fa-shapes text-slate-500 text-xs"></i>
+          <span class="font-bold text-slate-800 text-[11px] uppercase tracking-wider">College Types</span>
+        </div>
+        <span class="text-[9px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Col 4: type</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <!-- Government -->
+        <button 
+          onclick="filterByType('Government')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Government"
+          title="Filter Government colleges"
+        >
+          <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shadow-xs flex-shrink-0">
+            <i class="fa-solid fa-landmark"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Government</div>
+            <div class="text-[9px] text-blue-600 font-medium">Royal Blue</div>
+          </div>
+        </button>
+
+        <!-- Aided -->
+        <button 
+          onclick="filterByType('Aided')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Aided"
+          title="Filter Aided colleges"
+        >
+          <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-xs flex-shrink-0">
+            <i class="fa-solid fa-award"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Aided</div>
+            <div class="text-[9px] text-emerald-600 font-medium">Emerald Hex</div>
+          </div>
+        </button>
+
+        <!-- Self-Finance -->
+        <button 
+          onclick="filterByType('Self-Finance')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Self-Finance"
+          title="Filter Self-Finance colleges"
+        >
+          <div class="w-5 h-5 rotate-45 rounded-sm bg-purple-600 text-white flex items-center justify-center text-[9px] shadow-xs flex-shrink-0 my-0.5 ml-0.5 mr-1.5">
+            <i class="fa-solid fa-graduation-cap -rotate-45"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Self-Finance</div>
+            <div class="text-[9px] text-purple-600 font-medium">Purple Diamond</div>
+          </div>
+        </button>
+
+        <!-- Autonomous -->
+        <button 
+          onclick="filterByType('Autonomous')" 
+          class="legend-item flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition text-left" 
+          data-type="Autonomous"
+          title="Filter Autonomous colleges"
+        >
+          <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-amber-300 ring-offset-1 flex-shrink-0">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-bold text-slate-800 text-[10px] leading-tight">Autonomous</div>
+            <div class="text-[9px] text-amber-600 font-medium">Gold Crown</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Exam Centre Indicator & Reset -->
+      <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+        <div class="flex items-center space-x-1.5 text-slate-600 font-medium">
+          <span class="w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">★</span>
+          <span>Exam Centre</span>
+        </div>
+        <button onclick="filterByType('ALL')" class="text-blue-600 hover:text-blue-800 font-bold hover:underline">
+          Reset Filter
+        </button>
+      </div>
+    </div>
+
+    <!-- KMZ ACTIVE LAYER BADGE (Bottom Center) -->
+    <div id="kmz-active-badge" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 hidden">
+      <div class="bg-white/95 backdrop-blur-sm border border-emerald-300 px-3 py-1.5 rounded-full shadow-lg flex items-center space-x-2 text-xs text-slate-700">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="font-medium" id="kmz-badge-text">KMZ District Layer Active</span>
+        <button onclick="toggleKmzLayerVisibility()" id="kmz-visibility-toggle-btn" class="ml-1 text-xs text-blue-600 hover:underline">Hide</button>
+        <button onclick="clearKmzLayer()" class="text-slate-400 hover:text-red-500 ml-1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <!-- FLOATING PROXIMITY CIRCLE TOOL SHEET (Top Left / Responsive) -->
+    <div 
+      id="proximity-panel" 
+      class="absolute top-4 left-4 z-20 w-80 sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] transition-all duration-300 hidden"
+    >
+      <!-- Panel Header -->
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+            <i class="fa-solid fa-bullseye text-xs"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-bold text-slate-800 leading-tight">Proximity Circle Tool</h2>
+            <p class="text-[10px] text-slate-500">Identify colleges within radius</p>
+          </div>
+        </div>
+        <button onclick="toggleProximityPanel()" class="text-slate-400 hover:text-slate-600 w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+
+      <!-- Compact Selectors (Center College & Circle Radius) -->
+      <div class="p-3.5 space-y-2.5 text-xs">
+        <div class="grid grid-cols-12 gap-2">
+          <!-- Center College Selector -->
+          <div class="col-span-8">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Center College:</label>
+            <select 
+              id="proximity-center-select" 
+              class="w-full px-2.5 py-1.5 text-[11px] bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none"
+              onchange="onProximityParamsChanged()"
+            >
+              <option value="">-- Select Center College --</option>
+            </select>
+          </div>
+
+          <!-- Radius Dropdown Selector: 2, 5, 8, 10, 12, 15, 18, 20, 25 km -->
+          <div class="col-span-4">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Radius:</label>
+            <select 
+              id="proximity-radius-select" 
+              class="w-full px-2.5 py-1.5 text-[11px] font-bold bg-slate-50 border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-blue-700"
+              onchange="onProximityParamsChanged()"
+            >
+              <option value="2">2 km</option>
+              <option value="5">5 km</option>
+              <option value="8">8 km</option>
+              <option value="10">10 km</option>
+              <option value="12">12 km</option>
+              <option value="15" selected>15 km</option>
+              <option value="18">18 km</option>
+              <option value="20">20 km</option>
+              <option value="25">25 km</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Statistics Summary Pill -->
+        <div id="proximity-stats-card" class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 hidden">
+          <div class="grid grid-cols-3 text-center divide-x divide-slate-200">
+            <div>
+              <div id="stat-colleges-count" class="text-sm font-bold text-blue-600">0</div>
+              <div class="text-[9px] text-slate-500 uppercase font-medium">In Radius</div>
+            </div>
+            <div>
+              <div id="stat-total-seats" class="text-sm font-bold text-emerald-600">0</div>
+              <div class="text-[9px] text-slate-500 uppercase font-medium">Total Seats</div>
+            </div>
+            <div>
+              <div id="stat-daily-students" class="text-sm font-bold text-amber-600">0</div>
+              <div class="text-[9px] text-slate-500 uppercase font-medium">Daily Limit</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nearby Colleges Header & Direction Layer Toggle -->
+        <div class="flex items-center justify-between pt-1">
+          <span class="text-[11px] font-bold text-slate-700">Nearby Colleges (sorted by Distance):</span>
+          <span id="proximity-count-label" class="text-[10px] text-slate-500">0 found</span>
+        </div>
+
+        <!-- Direction & Road Distance Options -->
+        <div class="bg-blue-50/70 border border-blue-200 rounded-lg p-2 flex items-center justify-between text-[10px]">
+          <label class="flex items-center space-x-1.5 cursor-pointer text-blue-900 font-semibold select-none">
+            <input type="checkbox" id="toggle-direction-rays" checked onchange="toggleProximityDirectionRays()" class="rounded text-blue-600 focus:ring-0">
+            <span>Show Direction Rays on Map</span>
+          </label>
+          <span class="text-[9px] text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
+            <i class="fa-solid fa-compass mr-1"></i>Compass & Roads
+          </span>
+        </div>
+
+        <!-- Scrollable Nearby Colleges List -->
+        <div id="proximity-colleges-list" class="overflow-y-auto max-h-56 space-y-1.5 pr-1">
+          <div class="text-center py-6 text-slate-400 text-xs">
+            Select a center college to calculate proximity
+          </div>
+        </div>
+
+        <!-- Action Button: Clear Circle -->
+        <button 
+          onclick="clearProximityCircle()" 
+          class="w-full py-1.5 text-[11px] font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-300 rounded-lg transition"
+        >
+          Clear Circle Overlay
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR / DIRECTORY DRAWER -->
+    <div 
+      id="directory-sidebar" 
+      class="absolute top-0 right-0 bottom-0 w-80 sm:w-96 bg-white z-20 shadow-2xl border-l border-slate-200 flex flex-col transition-transform duration-300 translate-x-full"
+    >
+      <!-- Sidebar Header -->
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i class="fa-solid fa-building-columns text-xs"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-bold text-slate-800">College Directory</h2>
+            <p class="text-[10px] text-slate-500" id="directory-count">12 colleges active</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-1">
+          <button onclick="openModal('add-college-modal')" class="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
+            <i class="fa-solid fa-plus mr-1"></i>Add
+          </button>
+          <button onclick="toggleSidebar()" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Export / Template Buttons -->
+      <div class="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+        <button 
+          onclick="downloadSampleExcelTemplate()" 
+          class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 flex items-center justify-center space-x-1.5 transition"
+        >
+          <i class="fa-solid fa-download text-emerald-600"></i>
+          <span>Sample Template</span>
+        </button>
+        <button 
+          onclick="exportCollegesToExcel()" 
+          class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-medium text-slate-700 flex items-center justify-center space-x-1.5 transition"
+        >
+          <i class="fa-solid fa-file-export text-blue-600"></i>
+          <span>Export Excel</span>
+        </button>
+      </div>
+
+      <!-- Directory List -->
+      <div id="directory-list" class="flex-1 overflow-y-auto p-3 space-y-2">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: EXCEL / CSV UPLOAD DIALOG -->
+  <div id="upload-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+            <i class="fa-solid fa-file-excel text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Upload College Spreadsheet</h3>
+            <p class="text-xs text-slate-500">Upload 6-column Excel (.xlsx, .xls) or CSV</p>
+          </div>
+        </div>
+        <button onclick="closeModal('upload-modal')" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Drag and drop zone -->
+      <div 
+        id="excel-dropzone" 
+        class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-emerald-50/20"
+        onclick="document.getElementById('excel-file-input').click()"
+      >
+        <i class="fa-solid fa-cloud-arrow-up text-3xl text-emerald-500 mb-2"></i>
+        <p class="text-xs font-semibold text-slate-700">Click or drag & drop spreadsheet here</p>
+        <p class="text-[11px] text-slate-400 mt-1">Supports .xlsx, .xls, and .csv files</p>
+        <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelFileSelect(event)" />
+      </div>
+
+      <!-- 6-Column Format Helper -->
+      <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+        <div class="font-semibold text-slate-700 text-[11px] mb-1 flex items-center justify-between">
+          <span>Excel 6-Column Layout:</span>
+          <button onclick="downloadSampleExcelTemplate()" class="text-blue-600 hover:underline text-[10px]">Download sample format</button>
+        </div>
+        <div class="grid grid-cols-2 gap-1 text-[10px] text-slate-500">
+          <div>1. College Code / District</div>
+          <div>2. College Name / Code</div>
+          <div>3. District / College Name</div>
+          <div>4. Seating Capacity / Type</div>
+          <div class="font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">5. Latitude (5th col)</div>
+          <div class="font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded">6. Longitude (6th col)</div>
+        </div>
+      </div>
+
+      <!-- Replace vs Append option -->
+      <div class="mt-4 flex items-center space-x-2 text-xs text-slate-700">
+        <input type="checkbox" id="replace-colleges-checkbox" class="rounded text-emerald-600 focus:ring-emerald-500" />
+        <label for="replace-colleges-checkbox">Replace entire existing database with this file</label>
+      </div>
+
+      <div id="upload-status" class="mt-3 text-xs hidden"></div>
+
+      <!-- Footer Actions -->
+      <div class="mt-6 flex justify-end space-x-2">
+        <button onclick="closeModal('upload-modal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+        <button id="confirm-upload-btn" onclick="processExcelUpload()" class="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm disabled:opacity-50" disabled>
+          Import Colleges
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: KMZ / KML DISTRICT BOUNDARY DIALOG -->
+  <div id="kmz-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+            <i class="fa-solid fa-draw-polygon text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Insert KMZ / KML District Boundary</h3>
+            <p class="text-xs text-slate-500">Plot district boundaries with 30% transparency shading</p>
+          </div>
+        </div>
+        <button onclick="closeModal('kmz-modal')" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Dropzone for KMZ / KML -->
+      <div 
+        id="kmz-dropzone" 
+        class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/20"
+        onclick="document.getElementById('kmz-file-input').click()"
+      >
+        <i class="fa-solid fa-map-location-dot text-3xl text-blue-500 mb-2"></i>
+        <p class="text-xs font-semibold text-slate-700">Click or drag & drop KMZ / KML file here</p>
+        <p class="text-[11px] text-slate-400 mt-1">Supports Google Earth .kmz archives and raw .kml files</p>
+        <input type="file" id="kmz-file-input" accept=".kmz,.kml" class="hidden" onchange="handleKmzFileSelect(event)" />
+      </div>
+
+      <!-- Layer Styling Info -->
+      <div class="mt-4 p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-slate-600 space-y-1">
+        <div class="font-semibold text-blue-900 text-[11px]">Boundary Layer Specs:</div>
+        <p class="text-[10px] text-slate-600">• Polygons rendered with 30% transparency fill shading</p>
+        <p class="text-[10px] text-slate-600">• Dynamic district centroid identification & boundary zoom fit</p>
+      </div>
+
+      <div id="kmz-status" class="mt-3 text-xs hidden"></div>
+
+      <!-- Footer Actions -->
+      <div class="mt-6 flex justify-between items-center">
+        <button onclick="clearKmzLayer(); closeModal('kmz-modal')" class="text-xs text-red-600 hover:underline">
+          Clear Current KMZ Layer
+        </button>
+        <div class="flex space-x-2">
+          <button onclick="closeModal('kmz-modal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+          <button id="confirm-kmz-btn" onclick="processKmzUpload()" class="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50" disabled>
+            Plot Boundary
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: EXAM TRANSIT & ROUTE CALCULATOR -->
+  <div id="transit-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+            <i class="fa-solid fa-route text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Exam Route & Transit ETA</h3>
+            <p class="text-xs text-slate-500">Calculate distance and transit time between colleges</p>
+          </div>
+        </div>
+        <button onclick="closeModal('transit-modal')" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Origin Exam Center:</label>
+          <select id="route-origin-select" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg outline-none"></select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Destination College:</label>
+          <select id="route-destination-select" class="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg outline-none"></select>
+        </div>
+
+        <!-- Transit ETA Result Box -->
+        <div id="transit-result-card" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-slate-800 hidden">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-indigo-950" id="route-distance-text">0.0 km</span>
+            <span class="px-2 py-0.5 bg-indigo-200 text-indigo-900 rounded font-semibold text-[11px]" id="route-eta-text">0 mins</span>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Calculated at 40 km/h average speed + 15 min dispatch buffer</p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-2">
+        <button onclick="closeModal('transit-modal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Close</button>
+        <button onclick="calculateAndDrawRoute()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm">
+          Plot Route
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ADD / EDIT COLLEGE DIALOG -->
+  <div id="add-college-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-slate-900 text-sm" id="college-modal-title">Add College to Map</h3>
+        <button onclick="closeModal('add-college-modal')" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <form id="college-form" onsubmit="handleCollegeFormSubmit(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="edit-college-id" />
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">College Code:</label>
+          <input type="text" id="form-code" required placeholder="e.g. 4118" class="w-full p-2 border border-slate-300 rounded-lg" />
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">College Name:</label>
+          <input type="text" id="form-name" required placeholder="e.g. Government College of Engineering" class="w-full p-2 border border-slate-300 rounded-lg" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">District:</label>
+            <input type="text" id="form-district" required placeholder="e.g. Nagpur" class="w-full p-2 border border-slate-300 rounded-lg" />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Seating Capacity:</label>
+            <input type="number" id="form-capacity" required placeholder="e.g. 2400" class="w-full p-2 border border-slate-300 rounded-lg" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Latitude:</label>
+            <input type="number" step="any" id="form-lat" required placeholder="e.g. 21.1255" class="w-full p-2 border border-slate-300 rounded-lg" />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Longitude:</label>
+            <input type="number" step="any" id="form-lon" required placeholder="e.g. 79.0520" class="w-full p-2 border border-slate-300 rounded-lg" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">College Type (Column 4 'type'):</label>
+          <select id="form-type" class="w-full p-2 border border-slate-300 rounded-lg bg-white text-xs outline-none focus:ring-1 focus:ring-blue-500 font-medium">
+            <option value="Government">Government (Govt)</option>
+            <option value="Aided">Aided (Grant-in-Aid)</option>
+            <option value="Self-Finance">Self-Finance (Private / Unaided)</option>
+            <option value="Autonomous">Autonomous College</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Branches / Streams:</label>
+          <input type="text" id="form-branches" required placeholder="Computer Science, Mechanical, Civil" class="w-full p-2 border border-slate-300 rounded-lg" />
+        </div>
+        <div class="flex items-center space-x-2 pt-1">
+          <input type="checkbox" id="form-exam-centre" class="rounded text-blue-600" />
+          <label for="form-exam-centre" class="font-medium text-slate-700">Mark as Designated Exam Centre</label>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-2">
+          <button type="button" onclick="closeModal('add-college-modal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">Save College</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: USER LOGIN / AUTHENTICATION MODAL -->
+  <div id="login-modal" class="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 relative overflow-hidden">
+      <!-- Decorative background accent -->
+      <div class="absolute -top-16 -right-16 w-36 h-36 bg-blue-500/10 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-16 -left-16 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl"></div>
+
+      <div class="text-center mb-6 relative">
+        <div 
+          onclick="toggleOwnerCredentialsPrompt()" 
+          title="UniMap Portal (Click for owner access)" 
+          class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white items-center justify-center shadow-lg shadow-blue-500/30 mb-3 cursor-pointer hover:scale-105 transition-transform"
+        >
+          <i class="fa-solid fa-graduation-cap text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">UniMap GIS Portal</h2>
+        <p class="text-xs text-slate-500 mt-1">College & Exam Center Geospatial Management System</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1.5">Username / ID:</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+              <i class="fa-solid fa-user text-xs"></i>
+            </span>
+            <input 
+              type="text" 
+              id="login-username" 
+              required 
+              autocomplete="username"
+              placeholder="Enter your assigned username" 
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-xl outline-none transition text-xs text-slate-800"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1.5">Password:</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+              <i class="fa-solid fa-lock text-xs"></i>
+            </span>
+            <input 
+              type="password" 
+              id="login-password" 
+              required 
+              autocomplete="current-password"
+              placeholder="Enter your assigned password" 
+              class="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-xl outline-none transition text-xs text-slate-800"
+            />
+            <button 
+              type="button" 
+              onclick="togglePasswordVisibility('login-password')" 
+              class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+            >
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error Feedback -->
+        <div id="login-error" class="hidden p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium"></div>
+
+        <button 
+          type="submit" 
+          id="login-submit-btn"
+          class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/25 transition flex items-center justify-center space-x-2"
+        >
+          <i class="fa-solid fa-right-to-bracket"></i>
+          <span>Sign In to Access Portal</span>
+        </button>
+      </form>
+
+      <!-- Institutional security footer for general visitors (Hidden credentials) -->
+      <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="flex items-center space-x-1.5">
+          <i class="fa-solid fa-shield-halved text-slate-400"></i>
+          <span>Authorized institutional portal access only</span>
+        </span>
+        <!-- Discrete owner/admin reveal trigger -->
+        <button 
+          type="button" 
+          id="owner-toggle-btn"
+          onclick="toggleOwnerCredentialsPrompt()" 
+          class="text-slate-300 hover:text-slate-500 transition p-1 text-[11px]" 
+          title="Owner access"
+        >
+          <i class="fa-solid fa-lock text-[10px]"></i>
+        </button>
+      </div>
+
+      <!-- Quick Preset Credentials Selector (HIDDEN FOR OTHERS, VISIBLE ONLY FOR SATISH / OWNER) -->
+      <div id="owner-preset-credentials" class="mt-4 pt-4 border-t border-slate-200/80 bg-slate-50 -mx-8 -mb-8 p-6 hidden">
+        <div class="text-[11px] font-bold text-slate-700 mb-2 flex items-center justify-between">
+          <span class="flex items-center space-x-1.5 text-purple-700 font-bold">
+            <i class="fa-solid fa-user-shield text-xs"></i>
+            <span>Owner Quick Access:</span>
+          </span>
+          <button type="button" onclick="hideOwnerCredentials()" class="text-[10px] text-slate-400 hover:text-slate-600">
+            Hide panel <i class="fa-solid fa-eye-slash ml-0.5"></i>
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <button 
+            type="button" 
+            onclick="fillCredentials('satish', 'exam2026')"
+            class="p-2 text-left bg-blue-50 hover:bg-blue-100/80 border border-blue-200 rounded-xl transition"
+          >
+            <div class="font-bold text-blue-900 flex items-center justify-between">
+              <span>👤 Satish</span>
+              <span class="text-[9px] bg-blue-200 text-blue-800 px-1 py-0.2 rounded font-extrabold">ADMIN</span>
+            </div>
+            <div class="text-[10px] text-blue-700 font-mono">satish / exam2026</div>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="fillCredentials('admin', 'admin123')"
+            class="p-2 text-left bg-purple-50 hover:bg-purple-100/80 border border-purple-200 rounded-xl transition"
+          >
+            <div class="font-bold text-purple-900 flex items-center justify-between">
+              <span>🛡️ Admin</span>
+              <span class="text-[9px] bg-purple-200 text-purple-800 px-1 py-0.2 rounded font-extrabold">ADMIN</span>
+            </div>
+            <div class="text-[10px] text-purple-700 font-mono">admin / admin123</div>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="fillCredentials('officer', 'officer2026')"
+            class="p-2 text-left bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 rounded-xl transition"
+          >
+            <div class="font-bold text-emerald-900 flex items-center justify-between">
+              <span>✏️ Officer</span>
+              <span class="text-[9px] bg-emerald-200 text-emerald-800 px-1 py-0.2 rounded font-extrabold">EDITOR</span>
+            </div>
+            <div class="text-[10px] text-emerald-700 font-mono">officer / officer2026</div>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="fillCredentials('viewer', 'viewer123')"
+            class="p-2 text-left bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl transition"
+          >
+            <div class="font-bold text-slate-800 flex items-center justify-between">
+              <span>👁️ Viewer</span>
+              <span class="text-[9px] bg-slate-200 text-slate-700 px-1 py-0.2 rounded font-extrabold">VIEW</span>
+            </div>
+            <div class="text-[10px] text-slate-600 font-mono">viewer / viewer123</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: CREDENTIALS & USER MANAGEMENT DIALOG (ADMIN ONLY) -->
+  <div id="credentials-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+            <i class="fa-solid fa-users-gear text-base"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Credentials & User Access Management</h3>
+            <p class="text-[11px] text-slate-500">Create and assign login passwords to allow others to open & edit</p>
+          </div>
+        </div>
+        <button onclick="closeModal('credentials-modal')" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto py-4 space-y-5 text-xs">
+        <!-- Active Credentials List -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-800 text-xs">Active Authorized Users:</span>
+            <span id="user-count-badge" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">...</span>
+          </div>
+          <div id="credentials-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Add / Edit User Form -->
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="font-bold text-slate-800 mb-3 flex items-center space-x-2">
+            <i class="fa-solid fa-user-plus text-purple-600"></i>
+            <span>Add or Update User Credentials</span>
+          </div>
+          <form id="add-user-form" onsubmit="handleUserFormSubmit(event)" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Username / ID:</label>
+                <input type="text" id="user-input-username" required placeholder="e.g. director_nagpur" class="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs" />
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Password:</label>
+                <input type="text" id="user-input-password" required placeholder="e.g. pass2026" class="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Full Name / Designation:</label>
+                <input type="text" id="user-input-name" placeholder="e.g. Exam Controller" class="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs" />
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Access Role:</label>
+                <select id="user-input-role" class="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-medium">
+                  <option value="editor">Editor (Can edit colleges, upload Excel/KMZ)</option>
+                  <option value="admin">Admin (Full access + credential manager)</option>
+                  <option value="viewer">Viewer (Read-only, route & radius analysis)</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex justify-end pt-1">
+              <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-sm transition flex items-center space-x-1.5 text-xs">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Save Credentials</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Shareable Link Card -->
+        <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs">
+          <div class="font-bold text-blue-900 mb-1 flex items-center justify-between">
+            <span>Shareable Link & Instructions</span>
+            <button onclick="copyShareableLinkDetails()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold shadow-xs transition flex items-center space-x-1">
+              <i class="fa-solid fa-copy"></i>
+              <span>Copy Share Details</span>
+            </button>
+          </div>
+          <p class="text-blue-700 text-[11px] leading-relaxed">
+            Anyone with this portal link can open the application and log in with the credentials you configure above.
+          </p>
+          <div class="mt-2 p-2 bg-white/80 rounded-lg border border-blue-100 font-mono text-[10px] text-slate-700 select-all truncate" id="shareable-portal-url">
+            <!-- Set via JS -->
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeModal('credentials-modal')" class="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION CORE SCRIPT -->
+  <script>
+    // Initial Pre-populated Colleges across key educational hubs
+    const DEFAULT_COLLEGES = [
+      { id: 1, code: "4118", name: "Visvesvaraya National Institute of Technology (VNIT)", district: "Nagpur", type: "Autonomous", seatingCapacity: 3500, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics, Chemical", isExamCentre: true, lat: 21.1255, lon: 79.0520 },
+      { id: 2, code: "4004", name: "Government College of Engineering, Nagpur (GCOEN)", district: "Nagpur", type: "Government", seatingCapacity: 2200, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics", isExamCentre: true, lat: 21.0963, lon: 79.0880 },
+      { id: 3, code: "4144", name: "Shri Ramdeobaba College of Engineering & Management", district: "Nagpur", type: "Autonomous", seatingCapacity: 2800, branches: "Computer Science, Data Science, AI, Mechanical, Electronics", isExamCentre: true, lat: 21.1783, lon: 79.0618 },
+      { id: 4, code: "4171", name: "Yeshwantrao Chavan College of Engineering (YCCE)", district: "Nagpur", type: "Autonomous", seatingCapacity: 2600, branches: "Computer Science, Information Technology, Civil, Mechanical", isExamCentre: false, lat: 21.0988, lon: 78.9785 },
+      { id: 5, code: "4138", name: "G.H. Raisoni College of Engineering (GHRE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2400, branches: "Computer Science, Electronics, Mechanical, Civil, Management", isExamCentre: false, lat: 21.1070, lon: 79.0022 },
+      { id: 6, code: "4190", name: "Priyadarshini College of Engineering (PCE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2300, branches: "Computer Science, Mechanical, Civil, Electrical, Aeronautical", isExamCentre: false, lat: 21.1220, lon: 79.0065 },
+      { id: 7, code: "4163", name: "St. Vincent Pallotti College of Engineering & Tech", district: "Nagpur", type: "Self-Finance", seatingCapacity: 1900, branches: "Computer Science, Data Science, Mechanical, Civil", isExamCentre: false, lat: 21.0354, lon: 79.0832 },
+      { id: 8, code: "4201", name: "Bajaj Institute of Technology (BIT)", district: "Wardha", type: "Aided", seatingCapacity: 1800, branches: "Computer Science, Mechanical, Civil, Electrical", isExamCentre: true, lat: 20.7453, lon: 78.6022 },
+      { id: 9, code: "4208", name: "Bapurao Deshmukh College of Engineering (BDCE)", district: "Wardha", type: "Aided", seatingCapacity: 2000, branches: "Computer Science, Electronics, Mechanical, Civil", isExamCentre: false, lat: 20.7180, lon: 78.5830 },
+      { id: 10, code: "4305", name: "Government College of Engineering, Amravati (GCOEA)", district: "Amravati", type: "Government", seatingCapacity: 2500, branches: "Computer Science, Electronics, Electrical, Mechanical, Civil", isExamCentre: true, lat: 20.9320, lon: 77.7523 },
+      { id: 11, code: "4410", name: "Government College of Engineering, Chandrapur (GCOEC)", district: "Chandrapur", type: "Government", seatingCapacity: 2100, branches: "Mining, Mechanical, Electrical, Computer Science, Civil", isExamCentre: true, lat: 19.9540, lon: 79.2961 },
+      { id: 12, code: "4501", name: "Manoharbhai Patel Institute of Engineering & Tech", district: "Bhandara", type: "Aided", seatingCapacity: 1600, branches: "Computer Science, Mechanical, Electronics, Civil", isExamCentre: false, lat: 21.1712, lon: 79.6540 }
+    ];
+
+    // State
+    let currentUser = null;
+    let colleges = [];
+    let map = null;
+    let markers = {};
+    let activeCircle = null;
+    let activeProximityDirectionLines = [];
+    let proximityRoadDistancesCache = {};
+    let activeRoute = null;
+    let kmzLayer = null;
+    let isKmzVisible = true;
+    let selectedTileIndex = 0;
+    let examOnlyFilter = false;
+    let selectedTypeFilter = "ALL";
+    let searchQuery = "";
+    let selectedCenterCollege = null;
+    let currentRadiusKm = 15;
+    let parsedExcelData = null;
+    let parsedKmzGeoJson = null;
+
+    // Tile layers (Streets, Satellite / Hybrid, Topo, Carto)
+    const TILE_PROVIDERS = [
+      {
+        name: "Google / OSM Streets",
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }
+      },
+      {
+        name: "Satellite Hybrid",
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        options: { maxZoom: 18, attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community" }
+      },
+      {
+        name: "Topographic Terrain",
+        url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        options: { maxZoom: 17, attribution: "Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)" }
+      },
+      {
+        name: "CartoDB Clean Positron",
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        options: { maxZoom: 20, attribution: "&copy; OpenStreetMap &copy; CARTO" }
+      }
+    ];
+    let currentTileLayer = null;
+
+    // Haversine Distance Calculation (km)
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371.0;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // Compass Bearing Calculation (0 - 360 degrees)
+    function calculateBearing(lat1, lon1, lat2, lon2) {
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const lat1Rad = lat1 * Math.PI / 180;
+      const lat2Rad = lat2 * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(lat2Rad);
+      const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+      let brng = Math.atan2(y, x) * 180 / Math.PI;
+      return (brng + 360) % 360;
+    }
+
+    // 16-point Compass Direction Label
+    function getCompassDirection(deg) {
+      const points = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      const index = Math.round(deg / 22.5) % 16;
+      return points[index];
+    }
+
+    // Directional Arrow Symbol for UI
+    function getDirectionArrow(direction) {
+      const arrows = {
+        "N": "↑", "NNE": "↗", "NE": "↗", "ENE": "↗",
+        "E": "→", "ESE": "↘", "SE": "↘", "SSE": "↘",
+        "S": "↓", "SSW": "↙", "SW": "↙", "WSW": "↙",
+        "W": "←", "WNW": "↖", "NW": "↖", "NNW": "↖"
+      };
+      return arrows[direction] || "🧭";
+    }
+
+    // Empirical Road Distance fallback based on regional circuity
+    function estimateRoadDistance(aerialKm) {
+      return Math.max(aerialKm * 1.28, aerialKm + 0.4);
+    }
+
+    // Asynchronously fetch OSRM road distance
+    async function fetchRoadDistanceOSRM(c1, c2, onComplete) {
+      const cacheKey = `${c1.id}_${c2.id}`;
+      if (proximityRoadDistancesCache[cacheKey]) {
+        onComplete(proximityRoadDistancesCache[cacheKey]);
+        return;
+      }
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${c1.lon},${c1.lat};${c2.lon},${c2.lat}?overview=false`;
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.routes && data.routes.length > 0) {
+            const roadKm = data.routes[0].distance / 1000.0;
+            const mins = Math.round(data.routes[0].duration / 60.0);
+            const result = { roadKm, mins, isLive: true };
+            proximityRoadDistancesCache[cacheKey] = result;
+            onComplete(result);
+            return;
+          }
+        }
+      } catch (e) {
+        // Fallback silently if offline or throttled
+      }
+      const estRoad = estimateRoadDistance(haversineDistance(c1.lat, c1.lon, c2.lat, c2.lon));
+      const estMins = Math.round((estRoad / 40.0) * 60 + 10);
+      const fallbackResult = { roadKm: estRoad, mins: estMins, isLive: false };
+      proximityRoadDistancesCache[cacheKey] = fallbackResult;
+      onComplete(fallbackResult);
+    }
+
+    // Initialize App
+    function initApp() {
+      // 1. Check Session
+      checkAuthSession();
+
+      // 2. Load Local Data first for instant feedback
+      loadLocalColleges();
+
+      // 3. Initialize Map UI
+      initMap();
+      renderDirectoryList();
+      populateDropdowns();
+      setupSearchListeners();
+
+      // 4. Fetch Live Data from Backend Server
+      syncCollegesFromServer();
+      syncKmzFromServer();
+    }
+
+    function checkAuthSession() {
+      checkOwnerMode();
+      try {
+        const storedUser = localStorage.getItem("unimap_session");
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+          applyUserSession(currentUser);
+        } else {
+          openModal("login-modal");
+        }
+      } catch (e) {
+        openModal("login-modal");
+      }
+    }
+
+    function applyUserSession(user) {
+      if (!user) return;
+      document.getElementById("user-display-name").textContent = user.name || user.username;
+      const roleBadge = document.getElementById("user-role-badge");
+      const manageBtn = document.getElementById("manage-users-btn");
+
+      if (user.role === 'admin') {
+        roleBadge.textContent = "ADMIN";
+        roleBadge.className = "px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-100 text-purple-800";
+        manageBtn.classList.remove("hidden");
+      } else if (user.role === 'editor') {
+        roleBadge.textContent = "EDITOR";
+        roleBadge.className = "px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800";
+        manageBtn.classList.add("hidden");
+      } else {
+        roleBadge.textContent = "VIEWER";
+        roleBadge.className = "px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-slate-200 text-slate-700";
+        manageBtn.classList.add("hidden");
+      }
+    }
+
+    // Load colleges from localStorage or Defaults
+    function loadLocalColleges() {
+      const stored = localStorage.getItem("unimap_colleges_db");
+      if (stored) {
+        try {
+          const raw = JSON.parse(stored);
+          if (Array.isArray(raw) && raw.length > 0) {
+            colleges = raw.map(c => ({
+              ...c,
+              type: resolveCollegeType(c.type, c.name)
+            }));
+          } else {
+            colleges = [...DEFAULT_COLLEGES];
+          }
+        } catch (e) {
+          colleges = [...DEFAULT_COLLEGES];
+        }
+      } else {
+        colleges = [...DEFAULT_COLLEGES];
+        saveColleges();
+      }
+    }
+
+    function saveColleges() {
+      localStorage.setItem("unimap_colleges_db", JSON.stringify(colleges));
+    }
+
+    // Sync Colleges from Live Server
+    function syncCollegesFromServer() {
+      fetch('/api/colleges')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            colleges = data.map(c => ({
+              ...c,
+              type: resolveCollegeType(c.type, c.name)
+            }));
+            saveColleges();
+            renderCollegePins();
+            renderDirectoryList();
+            populateDropdowns();
+          }
+        })
+        .catch(err => console.log("Server sync offline, using local data", err));
+    }
+
+    // Sync KMZ from Live Server
+    function syncKmzFromServer() {
+      fetch('/api/kmz')
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.geojson && data.geojson.polygons) {
+            parsedKmzGeoJson = data.geojson;
+            processKmzUpload(true); // true = silent restore
+          }
+        })
+        .catch(err => console.log("No saved KMZ on server", err));
+    }
+
+    // Initialize Leaflet Map
+    function initMap() {
+      // Centered on Nagpur / Vidarbha region
+      map = L.map("map", {
+        center: [21.1458, 79.0882],
+        zoom: 11,
+        zoomControl: false
+      });
+
+      // Place zoom controls on top-right below actions
+      L.control.zoom({ position: "topright" }).addTo(map);
+
+      // Scale bar in km
+      L.control.scale({ imperial: false, position: "bottomright" }).addTo(map);
+
+      // Apply initial tile layer
+      applyTileLayer(0);
+
+      // Render college pins
+      renderCollegePins();
+    }
+
+    function applyTileLayer(index) {
+      if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+      }
+      selectedTileIndex = index % TILE_PROVIDERS.length;
+      const provider = TILE_PROVIDERS[selectedTileIndex];
+      currentTileLayer = L.tileLayer(provider.url, provider.options).addTo(map);
+    }
+
+    function cycleTileLayer() {
+      applyTileLayer(selectedTileIndex + 1);
+    }
+
+    function resetMapView() {
+      if (colleges.length > 0) {
+        const group = new L.featureGroup(Object.values(markers));
+        map.fitBounds(group.getBounds().pad(0.1));
+      } else {
+        map.setView([21.1458, 79.0882], 11);
+      }
+    }
+
+    // Helper to check if a string contains college type indicators
+    function isCollegeTypeString(str) {
+      if (!str) return false;
+      const s = String(str).replace(/\u00A0/g, " ").trim().toUpperCase();
+      if (!s) return false;
+      return s.includes("AUTO") || s.includes("AIDED") || s.includes("GRANT") ||
+             s.includes("SELF") || s.includes("SFI") || s.includes("PRIVATE") || s.includes("UNAIDED") ||
+             s.includes("NON-GRANT") || s.includes("NON GRANT") || s.includes("PVT") ||
+             s.includes("GOV") || s === "G" || s === "A" || s === "SF" || s === "AUTO";
+    }
+
+    // Helper to resolve and normalize College Type from Column 4 titled 'type' or college metadata
+    function resolveCollegeType(rawType, name = "") {
+      const cleanRaw = String(rawType || "").replace(/\u00A0/g, " ").trim();
+      const t = cleanRaw.toUpperCase();
+      const n = String(name || "").replace(/\u00A0/g, " ").toUpperCase();
+
+      // 1. Autonomous
+      if (t.includes("AUTO") || n.includes("AUTONOMOUS") || n.includes("AUTONOMY")) {
+        return "Autonomous";
+      }
+
+      // 2. Self-Finance / Unaided / Non-Grant / Private (checked BEFORE Aided because 'Unaided' contains 'aided' and 'Non-grant' contains 'grant')
+      if (t.includes("NON-GRANT") || t.includes("NON GRANT") || t.includes("UNAIDED") || t.includes("UN-AIDED") || t.includes("UN AIDED") ||
+          t.includes("SELF") || t.includes("SFI") || t.includes("PRIVATE") || t.includes("PVT") ||
+          t === "SF" || t === "S.F." || t === "S.F.I." || t === "3" ||
+          n.includes("SELF FINANCE") || n.includes("SELF-FINANCE") || n.includes("SELF FINANCED") || n.includes("UNAIDED")) {
+        return "Self-Finance";
+      }
+
+      // 3. Aided / Grant-in-aid
+      if (t.includes("AIDED") || t.includes("GRANT") || t === "A" || t === "GIA" || t === "2" ||
+          n.includes("AIDED") || n.includes("GRANT-IN-AID")) {
+        return "Aided";
+      }
+
+      // 4. Government
+      if (t.includes("GOV") || t.includes("STATE") || t.includes("CENTRAL") || t.includes("CONDUCTING") ||
+          t.includes("UNIVERSITY MANAGED") || t === "G" || t === "1" ||
+          n.includes("GOVT") || n.includes("GOVERNMENT") || n.startsWith("GCOE")) {
+        return "Government";
+      }
+
+      // 5. Check prefix/letter heuristics
+      if (t.startsWith("SF") || t.startsWith("SELF") || t.startsWith("UN")) return "Self-Finance";
+      if (t.startsWith("AID") || t.startsWith("GR")) return "Aided";
+      if (t.startsWith("GOV")) return "Government";
+      if (t.startsWith("AUTO")) return "Autonomous";
+
+      // 6. Name heuristics fallback
+      if (n.includes("GOVERNMENT") || n.includes("GOVT")) return "Government";
+      if (n.includes("AIDED")) return "Aided";
+      if (n.includes("PRIVATE") || n.includes("SFI")) return "Self-Finance";
+      if (n.includes("VNIT") || n.includes("AUTONOMOUS")) return "Autonomous";
+
+      return "Government";
+    }
+
+    // Configuration for different colours and types of icons per College Type
+    function getCollegeTypeConfig(type, name = "") {
+      const normalized = resolveCollegeType(type, name);
+      switch (normalized) {
+        case "Government":
+          return {
+            label: "Government",
+            color: "#1D4ED8",
+            bgClass: "bg-blue-600",
+            borderClass: "border-blue-700",
+            pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
+            icon: "fa-solid fa-landmark",
+            shapeName: "Circle Pin",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Government College">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-blue-500/50">
+                    <i class="fa-solid fa-landmark text-[11px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Aided":
+          return {
+            label: "Aided",
+            color: "#059669",
+            bgClass: "bg-emerald-600",
+            borderClass: "border-emerald-700",
+            pillClass: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+            icon: "fa-solid fa-award",
+            shapeName: "Emerald Hexagon",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Aided College">
+                  <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-emerald-400/50">
+                    <i class="fa-solid fa-award text-[12px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Self-Finance":
+          return {
+            label: "Self-Finance",
+            color: "#9333EA",
+            bgClass: "bg-purple-600",
+            borderClass: "border-purple-700",
+            pillClass: "bg-purple-100 text-purple-800 border border-purple-300",
+            icon: "fa-solid fa-graduation-cap",
+            shapeName: "Purple Diamond",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Self-Finance College">
+                  <div class="w-7 h-7 rotate-45 rounded-lg bg-gradient-to-br from-purple-500 to-purple-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-purple-400/50">
+                    <i class="fa-solid fa-graduation-cap -rotate-45 text-[10px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        case "Autonomous":
+          return {
+            label: "Autonomous",
+            color: "#D97706",
+            bgClass: "bg-amber-500",
+            borderClass: "border-amber-600",
+            pillClass: "bg-amber-100 text-amber-900 border border-amber-300",
+            icon: "fa-solid fa-crown",
+            shapeName: "Golden Crown Badge",
+            createMarkerHtml: (isExam) => {
+              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+              return `
+                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Autonomous College">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-amber-400/70 ring-offset-1">
+                    <i class="fa-solid fa-crown text-[11px]"></i>
+                  </div>
+                  ${examBadge}
+                </div>`;
+            }
+          };
+        default:
+          return {
+            label: "Government",
+            color: "#1D4ED8",
+            bgClass: "bg-blue-600",
+            borderClass: "border-blue-700",
+            pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
+            icon: "fa-solid fa-landmark",
+            shapeName: "Circle Pin",
+            createMarkerHtml: (isExam) => `<div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white text-white flex items-center justify-center"><i class="fa-solid fa-landmark text-xs"></i></div>`
+          };
+      }
+    }
+
+    // Render College Markers on Map
+    function renderCollegePins() {
+      // Clear existing markers
+      Object.values(markers).forEach(m => map.removeLayer(m));
+      markers = {};
+
+      const filtered = getFilteredColleges();
+
+      filtered.forEach(col => {
+        const isExam = col.isExamCentre;
+        const config = getCollegeTypeConfig(col.type, col.name);
+        const iconHtml = config.createMarkerHtml(isExam);
+
+        const icon = L.divIcon({
+          className: "custom-marker",
+          html: iconHtml,
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+          popupAnchor: [0, -18]
+        });
+
+        const marker = L.marker([col.lat, col.lon], { icon }).addTo(map);
+
+        // Rich Popup Window
+        const popupContent = `
+          <div class="p-1 max-w-xs">
+            <div class="flex items-center space-x-1.5 mb-1.5 flex-wrap gap-1">
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded flex items-center space-x-1 ${config.pillClass}">
+                <i class="${config.icon} mr-1"></i>${config.label}
+              </span>
+              ${isExam ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-800 border border-red-200">★ Exam Center</span>' : ''}
+              <span class="text-xs font-mono font-bold text-slate-500 ml-auto">Code: ${col.code}</span>
+            </div>
+            <h4 class="font-bold text-slate-900 text-xs leading-tight mb-1">${col.name}</h4>
+            <p class="text-[11px] text-slate-600 mb-1"><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${col.district} District</p>
+            <div class="flex items-center justify-between text-[11px] bg-slate-50 p-1.5 rounded border border-slate-200 mb-2">
+              <span class="text-slate-600">Seating Capacity:</span>
+              <span class="font-bold text-blue-700">${col.seatingCapacity.toLocaleString()} seats</span>
+            </div>
+            <p class="text-[10px] text-slate-500 mb-2 line-clamp-2"><strong>Streams:</strong> ${col.branches || 'General Engineering & Technology'}</p>
+            <div class="flex space-x-1.5 pt-1 border-t border-slate-100">
+              <button onclick="setAsProximityCenter(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded shadow-xs text-center">
+                Radius Center
+              </button>
+              <button onclick="openTransitModalWithOrigin(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow-xs text-center">
+                Route Transit
+              </button>
+            </div>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        markers[col.id] = marker;
+      });
+    }
+
+    // Filter Logic supporting College Types, Exam status, and Search query
+    function getFilteredColleges() {
+      return colleges.filter(col => {
+        const colType = resolveCollegeType(col.type, col.name);
+        const matchesType = (selectedTypeFilter === "ALL") || (colType.toLowerCase() === selectedTypeFilter.toLowerCase());
+        const matchesExam = examOnlyFilter ? col.isExamCentre : true;
+        const q = searchQuery.toLowerCase().trim();
+        const matchesQuery = !q || 
+          col.name.toLowerCase().includes(q) || 
+          col.code.toLowerCase().includes(q) || 
+          col.district.toLowerCase().includes(q) ||
+          colType.toLowerCase().includes(q);
+        return matchesType && matchesExam && matchesQuery;
+      });
+    }
+
+    function onTypeFilterChanged(val) {
+      selectedTypeFilter = val;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function filterByType(type) {
+      selectedTypeFilter = type;
+      const selectEl = document.getElementById("college-type-filter");
+      if (selectEl) selectEl.value = type;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function updateLegendActiveState() {
+      document.querySelectorAll(".legend-item").forEach(item => {
+        const itemType = item.getAttribute("data-type");
+        if (selectedTypeFilter === "ALL" || selectedTypeFilter.toLowerCase() === (itemType || "").toLowerCase()) {
+          item.classList.remove("opacity-30");
+        } else {
+          item.classList.add("opacity-30");
+        }
+      });
+    }
+
+    function setupSearchListeners() {
+      const input = document.getElementById("search-input");
+      const clearBtn = document.getElementById("clear-search-btn");
+      const examBtn = document.getElementById("exam-filter-btn");
+
+      input.addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        clearBtn.classList.toggle("hidden", !searchQuery);
+        renderCollegePins();
+        renderDirectoryList();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        searchQuery = "";
+        clearBtn.classList.add("hidden");
+        renderCollegePins();
+        renderDirectoryList();
+      });
+
+      examBtn.addEventListener("click", () => {
+        examOnlyFilter = !examOnlyFilter;
+        examBtn.classList.toggle("bg-amber-500", examOnlyFilter);
+        examBtn.classList.toggle("text-white", examOnlyFilter);
+        examBtn.classList.toggle("border-amber-600", examOnlyFilter);
+        renderCollegePins();
+        renderDirectoryList();
+      });
+    }
+
+    // Directory Sidebar Rendering
+    function renderDirectoryList() {
+      const listEl = document.getElementById("directory-list");
+      const countEl = document.getElementById("directory-count");
+      const filtered = getFilteredColleges();
+
+      countEl.textContent = `${filtered.length} colleges found`;
+      listEl.innerHTML = "";
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">No colleges match the search criteria.</div>`;
+        return;
+      }
+
+      filtered.forEach(col => {
+        const config = getCollegeTypeConfig(col.type, col.name);
+        const item = document.createElement("div");
+        item.className = "p-2.5 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl transition cursor-pointer";
+        item.onclick = () => focusCollege(col.id);
+        item.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="flex-1 pr-2">
+              <div class="flex items-center space-x-1.5 mb-1 flex-wrap gap-1">
+                <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">${col.code}</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-1 ${config.pillClass}">
+                  <i class="${config.icon} mr-1 text-[8px]"></i>${config.label}
+                </span>
+                ${col.isExamCentre ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-200">★ Exam Center</span>' : ''}
+              </div>
+              <h4 class="font-bold text-slate-900 text-xs leading-tight mb-0.5">${col.name}</h4>
+              <p class="text-[10px] text-slate-500">${col.district} District • Cap: ${col.seatingCapacity.toLocaleString()} seats</p>
+            </div>
+            <button onclick="event.stopPropagation(); deleteCollege(${col.id})" class="text-slate-400 hover:text-red-500 p-1">
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    function focusCollege(id) {
+      const col = colleges.find(c => c.id === id);
+      if (col && markers[id]) {
+        map.setView([col.lat, col.lon], 14, { animate: true });
+        markers[id].openPopup();
+      }
+    }
+
+    // PROXIMITY CIRCLE TOOL IMPLEMENTATION
+    function toggleProximityPanel() {
+      const panel = document.getElementById("proximity-panel");
+      panel.classList.toggle("hidden");
+    }
+
+    function populateDropdowns() {
+      const centerSelect = document.getElementById("proximity-center-select");
+      const originSelect = document.getElementById("route-origin-select");
+      const destSelect = document.getElementById("route-destination-select");
+
+      const optionsHtml = colleges.map(col => 
+        `<option value="${col.id}">${col.code} - ${col.name} (${col.district})</option>`
+      ).join("");
+
+      centerSelect.innerHTML = `<option value="">-- Select Center College --</option>` + optionsHtml;
+      originSelect.innerHTML = `<option value="">-- Select Origin Exam Center --</option>` + optionsHtml;
+      destSelect.innerHTML = `<option value="">-- Select Destination College --</option>` + optionsHtml;
+
+      // Select first exam center by default for origin
+      const firstExam = colleges.find(c => c.isExamCentre);
+      if (firstExam) {
+        originSelect.value = firstExam.id;
+      }
+    }
+
+    function setAsProximityCenter(id) {
+      document.getElementById("proximity-center-select").value = id;
+      const panel = document.getElementById("proximity-panel");
+      panel.classList.remove("hidden");
+      onProximityParamsChanged();
+    }
+
+    function onProximityParamsChanged() {
+      const centerId = parseInt(document.getElementById("proximity-center-select").value);
+      const radiusKm = parseFloat(document.getElementById("proximity-radius-select").value);
+
+      if (!centerId) {
+        clearProximityCircle();
+        return;
+      }
+
+      selectedCenterCollege = colleges.find(c => c.id === centerId);
+      currentRadiusKm = radiusKm;
+
+      if (!selectedCenterCollege) return;
+
+      // 1. Draw Circle Overlay on Leaflet Map
+      if (activeCircle) {
+        map.removeLayer(activeCircle);
+        activeCircle = null;
+      }
+      clearProximityDirectionLines();
+
+      activeCircle = L.circle([selectedCenterCollege.lat, selectedCenterCollege.lon], {
+        radius: currentRadiusKm * 1000, // convert to meters
+        color: "#2563EB",
+        weight: 2,
+        dashArray: "6, 6",
+        fillColor: "#3B82F6",
+        fillOpacity: 0.12
+      }).addTo(map);
+
+      // Fit map to circle bounds
+      map.fitBounds(activeCircle.getBounds().pad(0.1));
+
+      // 2. Compute Distances, Compass Direction & Road Distance for Nearby Colleges
+      const nearby = colleges.map(col => {
+        const aerialDist = haversineDistance(
+          selectedCenterCollege.lat, selectedCenterCollege.lon,
+          col.lat, col.lon
+        );
+        const bearing = calculateBearing(
+          selectedCenterCollege.lat, selectedCenterCollege.lon,
+          col.lat, col.lon
+        );
+        const compassDir = getCompassDirection(bearing);
+        const arrow = getDirectionArrow(compassDir);
+        const estRoad = estimateRoadDistance(aerialDist);
+        return { col, dist: aerialDist, bearing, compassDir, arrow, roadDist: estRoad };
+      })
+      .filter(item => item.dist <= currentRadiusKm)
+      .sort((a, b) => a.dist - b.dist);
+
+      // 3. Update Statistics
+      const totalSeats = nearby.reduce((acc, item) => acc + item.col.seatingCapacity, 0);
+      const dailyLimit = Math.round(totalSeats * 0.85);
+
+      document.getElementById("stat-colleges-count").textContent = nearby.length;
+      document.getElementById("stat-total-seats").textContent = totalSeats.toLocaleString();
+      document.getElementById("stat-daily-students").textContent = dailyLimit.toLocaleString();
+      document.getElementById("proximity-stats-card").classList.remove("hidden");
+      document.getElementById("proximity-count-label").textContent = `${nearby.length} colleges in ${currentRadiusKm} km`;
+
+      // 4. Render Direction Lines on Map & Scrollable Nearby Colleges List
+      const listEl = document.getElementById("proximity-colleges-list");
+      listEl.innerHTML = "";
+
+      const showRays = document.getElementById("toggle-direction-rays")?.checked ?? true;
+
+      nearby.forEach(({ col, dist, bearing, compassDir, arrow, roadDist }) => {
+        const isCenter = col.id === selectedCenterCollege.id;
+        let directionLine = null;
+
+        if (!isCenter) {
+          // Draw Direction Ray from Center to College
+          directionLine = L.polyline(
+            [[selectedCenterCollege.lat, selectedCenterCollege.lon], [col.lat, col.lon]],
+            {
+              color: "#2563EB",
+              weight: 2,
+              opacity: 0.8,
+              dashArray: "5, 6"
+            }
+          );
+
+          directionLine.bindTooltip(`
+            <div class="text-[11px] p-1 font-sans">
+              <div class="font-bold text-slate-800">${col.code} - ${col.name}</div>
+              <div class="text-blue-700 font-semibold mt-0.5">
+                🧭 Direction: <strong>${compassDir} (${Math.round(bearing)}°)</strong>
+              </div>
+              <div class="text-slate-600">
+                ✈️ Aerial Distance: <strong>${dist.toFixed(1)} km</strong>
+              </div>
+              <div class="text-emerald-700" id="ray-tooltip-road-${col.id}">
+                🚗 Road Distance: <strong>${roadDist.toFixed(1)} km</strong>
+              </div>
+            </div>
+          `, { sticky: true, opacity: 0.95 });
+
+          directionLine.on("click", () => focusCollege(col.id));
+
+          activeProximityDirectionLines.push({ id: col.id, line: directionLine });
+          if (showRays) {
+            directionLine.addTo(map);
+          }
+        }
+
+        const item = document.createElement("div");
+        item.className = `p-2 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition ${isCenter ? 'bg-blue-50/80 border-blue-300 shadow-xs' : 'bg-white hover:bg-slate-50 border-slate-200'}`;
+        item.onclick = () => focusCollege(col.id);
+
+        if (directionLine) {
+          item.onmouseenter = () => {
+            if (map.hasLayer(directionLine)) {
+              directionLine.setStyle({ color: "#DC2626", weight: 4.5, dashArray: null, opacity: 1 });
+              directionLine.bringToFront();
+            }
+          };
+          item.onmouseleave = () => {
+            if (map.hasLayer(directionLine)) {
+              directionLine.setStyle({ color: "#2563EB", weight: 2, dashArray: "5, 6", opacity: 0.8 });
+            }
+          };
+        }
+
+        if (isCenter) {
+          item.innerHTML = `
+            <div class="flex-1 pr-2">
+              <div class="font-bold text-blue-900 text-[11px] leading-tight flex items-center">
+                <i class="fa-solid fa-star text-amber-500 mr-1 text-[10px]"></i> ${col.name}
+              </div>
+              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()} seats</div>
+            </div>
+            <div class="px-2 py-1 rounded text-[9px] font-bold bg-blue-600 text-white shadow-xs">
+              CENTER HUB
+            </div>
+          `;
+        } else {
+          item.innerHTML = `
+            <div class="flex-1 pr-2">
+              <div class="font-bold text-slate-800 text-[11px] leading-tight truncate">${col.name}</div>
+              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()}</div>
+              <div class="mt-1 flex items-center space-x-1.5 text-[9px]">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span class="mr-1">${arrow}</span> ${compassDir} (${Math.round(bearing)}°)
+                </span>
+              </div>
+            </div>
+            <div class="flex flex-col items-end space-y-1">
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title="Straight-line Aerial Distance">
+                ✈️ ${dist.toFixed(1)} km
+              </span>
+              <span id="road-badge-${col.id}" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Estimated / Live Road Distance">
+                🚗 ${roadDist.toFixed(1)} km
+              </span>
+            </div>
+          `;
+        }
+        listEl.appendChild(item);
+
+        // Fetch live road routing distance in background
+        if (!isCenter) {
+          fetchRoadDistanceOSRM(selectedCenterCollege, col, (res) => {
+            const badge = document.getElementById(`road-badge-${col.id}`);
+            if (badge) {
+              badge.innerHTML = `🚗 ${res.roadKm.toFixed(1)} km`;
+              if (res.isLive) {
+                badge.classList.remove("bg-emerald-50", "text-emerald-700", "border-emerald-200");
+                badge.classList.add("bg-teal-50", "text-teal-800", "border-teal-300");
+                badge.title = `Live Road Distance (${res.mins} mins transit time)`;
+              }
+            }
+            const rayRoad = document.getElementById(`ray-tooltip-road-${col.id}`);
+            if (rayRoad) {
+              rayRoad.innerHTML = `🚗 Road Distance: <strong>${res.roadKm.toFixed(1)} km</strong> (~${res.mins} mins)`;
+            }
+          });
+        }
+      });
+    }
+
+    function clearProximityDirectionLines() {
+      activeProximityDirectionLines.forEach(item => {
+        if (map && map.hasLayer(item.line)) {
+          map.removeLayer(item.line);
+        }
+      });
+      activeProximityDirectionLines = [];
+    }
+
+    function toggleProximityDirectionRays() {
+      const show = document.getElementById("toggle-direction-rays")?.checked ?? true;
+      activeProximityDirectionLines.forEach(item => {
+        if (show) {
+          if (!map.hasLayer(item.line)) item.line.addTo(map);
+        } else {
+          if (map.hasLayer(item.line)) map.removeLayer(item.line);
+        }
+      });
+    }
+
+    function clearProximityCircle() {
+      if (activeCircle) {
+        map.removeLayer(activeCircle);
+        activeCircle = null;
+      }
+      clearProximityDirectionLines();
+      document.getElementById("proximity-stats-card").classList.add("hidden");
+      document.getElementById("proximity-colleges-list").innerHTML = `
+        <div class="text-center py-6 text-slate-400 text-xs">Select a center college to calculate proximity</div>
+      `;
+      document.getElementById("proximity-count-label").textContent = "0 found";
+      document.getElementById("proximity-center-select").value = "";
+    }
+
+    // FULL SCREEN TOGGLE
+    function toggleFullScreen() {
+      const header = document.getElementById("top-header");
+      const chip = document.getElementById("fullscreen-chip");
+      const isNowFull = header.classList.toggle("hidden");
+      chip.classList.toggle("hidden", !isNowFull);
+
+      // Trigger map resize
+      setTimeout(() => map.invalidateSize(), 200);
+    }
+
+    // MODAL HELPERS
+    function openModal(id) {
+      document.getElementById(id).classList.remove("hidden");
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add("hidden");
+    }
+    function toggleSidebar() {
+      const sidebar = document.getElementById("directory-sidebar");
+      sidebar.classList.toggle("translate-x-full");
+    }
+
+    // COORDINATE PARSER & CLEANER
+    function parseCoordinateValue(val) {
+      if (val === null || val === undefined) return null;
+      if (typeof val === 'number') return isNaN(val) ? null : val;
+      let s = String(val).trim().replace(/,/g, '.');
+      if (!s) return null;
+
+      // Degree-Minute-Second DMS format (e.g. 21° 7' 31.8" N or 21d 07m 31s)
+      const dmsMatch = s.match(/([0-9.]+)\s*[°d]\s*([0-9.]+)?\s*['m]?\s*([0-9.]+)?\s*["s]?\s*([NSEWnsew])?/);
+      if (dmsMatch && (s.includes('°') || s.includes('\'') || s.includes('"') || s.includes('d'))) {
+        const deg = parseFloat(dmsMatch[1]) || 0;
+        const min = parseFloat(dmsMatch[2]) || 0;
+        const sec = parseFloat(dmsMatch[3]) || 0;
+        const dir = dmsMatch[4] ? dmsMatch[4].toUpperCase() : '';
+        let dec = deg + (min / 60) + (sec / 3600);
+        if (dir === 'S' || dir === 'W') dec = -dec;
+        return dec;
+      }
+
+      // Strip unwanted characters except numbers, decimal dot and minus
+      const isNegative = s.toUpperCase().includes('S') || s.toUpperCase().includes('W') || s.startsWith('-');
+      const clean = s.replace(/[^0-9.]/g, '');
+      const num = parseFloat(clean);
+      if (isNaN(num)) return null;
+      return isNegative ? -num : num;
+    }
+
+    // EXCEL IMPORT & EXPORT
+    function handleExcelFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+
+          if (!json || json.length < 1) {
+            showUploadStatus("Spreadsheet contains no data rows.", true);
+            return;
+          }
+
+          // Scan first 10 rows to detect the real header row
+          let headerRowIndex = -1;
+          for (let r = 0; r < Math.min(10, json.length); r++) {
+            const rowStr = (json[r] || []).map(c => String(c || "").replace(/\u00A0/g, " ").trim().toLowerCase());
+            const hasType = rowStr.some(c => c === "type" || c.includes("type") || c.includes("management") || c.includes("category"));
+            const hasName = rowStr.some(c => c.includes("name") || c.includes("college") || c.includes("institute"));
+            const hasCode = rowStr.some(c => c.includes("code"));
+            const hasLat = rowStr.some(c => c.includes("lat"));
+            const hasCap = rowStr.some(c => c.includes("seat") || c.includes("cap") || c.includes("intake"));
+            if (hasType || (hasName && (hasCode || hasLat || hasCap))) {
+              headerRowIndex = r;
+              break;
+            }
+          }
+
+          let startRow = 1;
+          let latColIndex = 4; // Column 5
+          let lonColIndex = 5; // Column 6
+          let codeColIndex = -1;
+          let nameColIndex = -1;
+          let districtColIndex = -1;
+          let typeColIndex = 3; // Column 4 titled 'type' (0-indexed 3)
+          let capacityColIndex = 6; // Column 7 Seating Capacity (0-indexed 6)
+          let examColIndex = -1;
+          let branchColIndex = -1;
+
+          if (headerRowIndex !== -1) {
+            startRow = headerRowIndex + 1;
+            const headers = (json[headerRowIndex] || []).map(h => String(h || "").replace(/\u00A0/g, " ").toLowerCase().trim());
+            const hLat = headers.findIndex(h => h.includes("lat"));
+            const hLon = headers.findIndex(h => h.includes("lon") || h.includes("lng"));
+            if (hLat !== -1) latColIndex = hLat;
+            if (hLon !== -1) lonColIndex = hLon;
+
+            codeColIndex = headers.findIndex(h => h.includes("code"));
+            districtColIndex = headers.findIndex(h => h.includes("district") || h.includes("zone") || h.includes("region") || h.includes("city"));
+            nameColIndex = headers.findIndex(h => (h.includes("name") || h.includes("college") || h.includes("institute")) && !h.includes("code") && !h.includes("district") && !h.includes("type"));
+            if (nameColIndex === -1) nameColIndex = headers.findIndex(h => h.includes("name") || h.includes("college"));
+            
+            // Read type of colleges from column titled 'type' (or column 4)
+            const hType = headers.findIndex(h => h === "type" || h.includes("type") || h.includes("category") || h.includes("management") || h.includes("status"));
+            if (hType !== -1) {
+              typeColIndex = hType;
+            } else {
+              typeColIndex = 3; // Column 4 (0-indexed index 3)
+            }
+
+            // Read seating capacity from column 7 or capacity header
+            const hCap = headers.findIndex(h => h.includes("capacity") || h.includes("seating") || h.includes("seat") || h.includes("intake") || h.includes("student"));
+            if (hCap !== -1) {
+              capacityColIndex = hCap;
+            } else {
+              capacityColIndex = 6; // Column 7 (0-indexed index 6)
+            }
+
+            examColIndex = headers.findIndex(h => h.includes("exam"));
+            branchColIndex = headers.findIndex(h => h.includes("branch") || h.includes("stream") || h.includes("course"));
+          } else {
+            // First row check for coordinate data
+            const firstRow = json[0] || [];
+            const col4Coord = parseCoordinateValue(firstRow[4]);
+            const col5Coord = parseCoordinateValue(firstRow[5]);
+            const isFirstRowData = col4Coord !== null && col5Coord !== null;
+            startRow = isFirstRowData ? 0 : 1;
+            typeColIndex = 3; // Column 4
+            capacityColIndex = 6; // Column 7
+          }
+
+          // Parse rows
+          const parsed = [];
+          for (let i = startRow; i < json.length; i++) {
+            const row = json[i];
+            if (!row || row.length === 0 || row.every(c => c === null || c === undefined || String(c).trim() === '')) continue;
+
+            // 1. Read Latitude from 5th column (index 4) and Longitude from 6th column (index 5)
+            let rawLat = parseCoordinateValue(row[latColIndex !== -1 ? latColIndex : 4]);
+            let rawLon = parseCoordinateValue(row[lonColIndex !== -1 ? lonColIndex : 5]);
+
+            // If coordinates were not found in designated column, scan row for valid lat/lon
+            if (rawLat === null || rawLon === null) {
+              for (let c = 0; c < row.length; c++) {
+                if (c === typeColIndex || c === capacityColIndex) continue; // Don't pick from Type or Seating Capacity!
+                const val = parseCoordinateValue(row[c]);
+                if (val !== null && val >= 8 && val <= 38 && rawLat === null) {
+                  rawLat = val;
+                } else if (val !== null && val >= 68 && val <= 98 && rawLon === null) {
+                  rawLon = val;
+                }
+              }
+            }
+
+            // Coordinate Sanity & Auto-Swap Check (Lat ~15-25, Lon ~72-85 in India)
+            if (rawLat !== null && rawLon !== null) {
+              if (rawLat > 50.0 && rawLon < 45.0) {
+                const tmp = rawLat;
+                rawLat = rawLon;
+                rawLon = tmp;
+              }
+            }
+
+            const lat = rawLat !== null ? rawLat : (21.1458 + (i % 10) * 0.01);
+            const lon = rawLon !== null ? rawLon : (79.0882 + (i % 10) * 0.01);
+
+            // 2. Extract metadata (code, name, district)
+            let code = "";
+            let name = "";
+            let district = "";
+            let isExam = false;
+
+            if (codeColIndex !== -1 && row[codeColIndex]) code = String(row[codeColIndex]).trim();
+            if (nameColIndex !== -1 && row[nameColIndex]) name = String(row[nameColIndex]).trim();
+            if (districtColIndex !== -1 && row[districtColIndex]) district = String(row[districtColIndex]).trim();
+            
+            // Intelligent heuristic for remaining metadata columns (Col 0, 1, 2)
+            if (!code || !name || !district) {
+              const col0 = String(row[0] || "").trim();
+              const col1 = String(row[1] || "").trim();
+              const col2 = String(row[2] || "").trim();
+
+              const col0HasDigits = /\d{3,}/.test(col0);
+              const col1HasDigits = /\d{3,}/.test(col1);
+
+              if (col0HasDigits && !col1HasDigits) {
+                // Col 0: Code, Col 1: Name, Col 2: District
+                if (!code) code = col0;
+                if (!name) name = col1;
+                if (!district) district = col2 || "Nagpur";
+              } else if (!col0HasDigits && col1HasDigits) {
+                // Col 0: District, Col 1: Code, Col 2: Name
+                if (!district) district = col0;
+                if (!code) code = col1;
+                if (!name) name = col2;
+              } else {
+                if (!code) code = col0 || `COL-${1000 + i}`;
+                if (!name) name = col1 || `College ${i + 1}`;
+                if (!district) district = col2 || "Nagpur";
+              }
+            }
+
+            if (!code) code = `COL-${1000 + i}`;
+            if (!name) name = `College ${i + 1}`;
+            if (!district) district = "Nagpur";
+
+            // 3. Extract College Type from Column 4 titled 'type' (index 3 or typeColIndex)
+            // "In excel file uploaded column 4 has 'type'. In each row type of college is given in front of college name."
+            let rawType = "";
+            if (typeColIndex !== -1 && row[typeColIndex] !== undefined && row[typeColIndex] !== null && String(row[typeColIndex]).trim() !== "") {
+              rawType = String(row[typeColIndex]).replace(/\u00A0/g, " ").trim();
+            }
+            if (!rawType && row.length > 3 && row[3] !== undefined && row[3] !== null && String(row[3]).trim() !== "") {
+              rawType = String(row[3]).replace(/\u00A0/g, " ").trim();
+            }
+            if ((!rawType || !isCollegeTypeString(rawType)) && row.length > 4 && row[4] !== undefined && row[4] !== null) {
+              const candidate = String(row[4]).replace(/\u00A0/g, " ").trim();
+              if (isCollegeTypeString(candidate)) rawType = candidate;
+            }
+            // Scan row cells if still unresolved
+            if (!rawType || !isCollegeTypeString(rawType)) {
+              for (let c = 0; c < row.length; c++) {
+                const candidate = String(row[c] || "").replace(/\u00A0/g, " ").trim();
+                if (isCollegeTypeString(candidate)) {
+                  rawType = candidate;
+                  break;
+                }
+              }
+            }
+            const collegeType = resolveCollegeType(rawType, name);
+
+            // 4. Extract Seating Capacity: "Seating capacity should be taken from column 7."
+            let capacity = 1500;
+            let rawCapStr = "";
+            if (capacityColIndex !== -1 && row[capacityColIndex] !== undefined && row[capacityColIndex] !== null && String(row[capacityColIndex]).trim() !== "") {
+              rawCapStr = String(row[capacityColIndex]).trim();
+            }
+            // Fallback to Column 7 (index 6, 7th column)
+            if (!rawCapStr && row.length > 6 && row[6] !== undefined && row[6] !== null && String(row[6]).trim() !== "") {
+              rawCapStr = String(row[6]).trim();
+            }
+            // Fallback to index 7
+            if (!rawCapStr && row.length > 7 && row[7] !== undefined && row[7] !== null && String(row[7]).trim() !== "") {
+              rawCapStr = String(row[7]).trim();
+            }
+            const cleanCapDigits = rawCapStr.replace(/[^0-9]/g, "");
+            if (cleanCapDigits) {
+              const parsedCap = parseInt(cleanCapDigits);
+              if (!isNaN(parsedCap) && parsedCap > 0) {
+                capacity = parsedCap;
+              }
+            }
+
+            // Exam centre status
+            if (examColIndex !== -1 && row[examColIndex]) {
+              const eStr = String(row[examColIndex]).toLowerCase();
+              isExam = eStr.includes("yes") || eStr.includes("true") || eStr === "1";
+            }
+            if (capacity >= 2000 && !isExam) isExam = true;
+
+            // Extract branches / courses if present
+            let branches = "General Engineering, Technology";
+            if (branchColIndex !== -1 && row[branchColIndex]) {
+              branches = String(row[branchColIndex]).trim();
+            } else if (row.length > 7 && typeof row[7] === 'string' && isNaN(parseInt(row[7])) && String(row[7]).trim() !== '') {
+              branches = String(row[7]).trim();
+            }
+
+            parsed.push({
+              id: Date.now() + i,
+              code,
+              name,
+              district,
+              type: collegeType,
+              seatingCapacity: capacity,
+              branches,
+              isExamCentre: isExam,
+              lat,
+              lon
+            });
+          }
+
+          if (parsed.length === 0) {
+            showUploadStatus("Could not parse any valid college records.", true);
+            return;
+          }
+
+          parsedExcelData = parsed;
+          document.getElementById("confirm-upload-btn").disabled = false;
+
+          // Compute type segregation stats
+          const counts = { Government: 0, Aided: 0, "Self-Finance": 0, Autonomous: 0 };
+          parsed.forEach(c => {
+            if (counts[c.type] !== undefined) counts[c.type]++;
+            else counts[c.type] = 1;
+          });
+
+          showUploadStatus(
+            `✓ Successfully verified & segregated ${parsed.length} colleges!\n` +
+            `• 🏛 Government: ${counts["Government"] || 0} (Royal Blue)\n` +
+            `• 🎖 Aided: ${counts["Aided"] || 0} (Emerald Green)\n` +
+            `• 🎓 Self-Finance: ${counts["Self-Finance"] || 0} (Vivid Purple)\n` +
+            `• 👑 Autonomous: ${counts["Autonomous"] || 0} (Amber Gold)\n` +
+            `• 🪑 Seating Capacity taken from Column 7 (e.g. ${parsed[0]?.seatingCapacity} seats for ${parsed[0]?.name}).\n` +
+            `Click 'Import Colleges' below to display them on the map.`,
+            false
+          );
+        } catch (err) {
+          showUploadStatus("Failed to parse Excel file: " + err.message, true);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function processExcelUpload() {
+      if (!parsedExcelData || parsedExcelData.length === 0) return;
+
+      if (currentUser && currentUser.role === 'viewer') {
+        alert("Permission Denied: Your account has Viewer-only access. Contact the administrator for Editor permissions to upload spreadsheets.");
+        return;
+      }
+
+      const replaceAll = document.getElementById("replace-colleges-checkbox").checked;
+      if (replaceAll) {
+        colleges = [...parsedExcelData];
+      } else {
+        colleges = [...colleges, ...parsedExcelData];
+      }
+
+      saveColleges();
+      renderCollegePins();
+      renderDirectoryList();
+      populateDropdowns();
+      resetMapView();
+      closeModal("upload-modal");
+
+      // Sync to Standalone Web Server so all users see the imported colleges!
+      fetch('/api/colleges/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ list: colleges, mode: 'replace' })
+      }).catch(err => console.error("Batch college server sync error:", err));
+
+      alert(`Successfully imported ${parsedExcelData.length} colleges with exact Lat & Long! Saved to live server.`);
+      parsedExcelData = null;
+    }
+
+    function showUploadStatus(msg, isError) {
+      const el = document.getElementById("upload-status");
+      el.textContent = msg;
+      el.className = `mt-3 text-xs p-2.5 rounded-lg border ${isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`;
+      el.classList.remove("hidden");
+    }
+
+    function downloadSampleExcelTemplate() {
+      const sampleData = [
+        ["College Code", "College Name", "District", "type", "Latitude", "Longitude", "Seating Capacity", "Is Exam Centre"],
+        ["4118", "Visvesvaraya National Institute of Technology (VNIT)", "Nagpur", "Autonomous", 21.1255, 79.0520, 3500, "Yes"],
+        ["4004", "Government College of Engineering, Nagpur (GCOEN)", "Nagpur", "Government", 21.0963, 79.0880, 2200, "Yes"],
+        ["4138", "G.H. Raisoni College of Engineering (GHRE)", "Nagpur", "Self-Finance", 21.1070, 79.0022, 2400, "No"],
+        ["4201", "Bajaj Institute of Technology (BIT)", "Wardha", "Aided", 20.7453, 78.6022, 1800, "No"]
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(sampleData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Colleges");
+      XLSX.writeFile(wb, "UniMap_Colleges_Template.xlsx");
+    }
+
+    function exportCollegesToExcel() {
+      const data = [
+        ["College Code", "College Name", "District", "type", "Latitude", "Longitude", "Seating Capacity", "Branches", "Is Exam Centre"]
+      ];
+
+      colleges.forEach(c => {
+        data.push([
+          c.code,
+          c.name,
+          c.district,
+          c.type || resolveCollegeType("", c.name),
+          c.lat,
+          c.lon,
+          c.seatingCapacity,
+          c.branches,
+          c.isExamCentre ? "Yes" : "No"
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Exported Colleges");
+      XLSX.writeFile(wb, "University_Colleges_Database.xlsx");
+    }
+
+    // KMZ / KML BOUNDARY IMPORT
+    function handleKmzFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const isKmz = file.name.endsWith(".kmz");
+      const isKml = file.name.endsWith(".kml");
+
+      if (!isKmz && !isKml) {
+        showKmzStatus("Please select a valid .kmz or .kml file", true);
+        return;
+      }
+
+      if (isKmz) {
+        JSZip.loadAsync(file).then(zip => {
+          // Find doc.kml inside the zip
+          const kmlFile = Object.values(zip.files).find(f => f.name.endsWith(".kml"));
+          if (!kmlFile) {
+            showKmzStatus("KMZ does not contain a valid .kml document.", true);
+            return;
+          }
+          return kmlFile.async("text");
+        }).then(kmlText => {
+          if (kmlText) parseKmlAndPrepareLayer(kmlText, file.name);
+        }).catch(err => {
+          showKmzStatus("Error unzipping KMZ: " + err.message, true);
+        });
+      } else {
+        const reader = new FileReader();
+        reader.onload = evt => parseKmlAndPrepareLayer(evt.target.result, file.name);
+        reader.readAsText(file);
+      }
+    }
+
+    function parseKmlAndPrepareLayer(kmlString, fileName) {
+      try {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(kmlString, "text/xml");
+        const placemarks = xml.querySelectorAll("Placemark");
+
+        const polygons = [];
+        const colors = ["#2563EB", "#059669", "#D97706", "#7C3AED", "#DB2777", "#0891B2"];
+
+        placemarks.forEach((pm, idx) => {
+          const name = pm.querySelector("name")?.textContent || `District ${idx + 1}`;
+          const coordTags = pm.querySelectorAll("coordinates");
+
+          coordTags.forEach(ct => {
+            const raw = ct.textContent.trim();
+            const points = raw.split(/\s+/).map(str => {
+              const parts = str.split(",");
+              const lon = parseFloat(parts[0]);
+              const lat = parseFloat(parts[1]);
+              return [lat, lon];
+            }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
+
+            if (points.length >= 3) {
+              polygons.push({
+                name,
+                points,
+                color: colors[idx % colors.length]
+              });
+            }
+          });
+        });
+
+        if (polygons.length === 0) {
+          showKmzStatus("No valid polygon boundaries found in KML.", true);
+          return;
+        }
+
+        parsedKmzGeoJson = { fileName, polygons };
+        document.getElementById("confirm-kmz-btn").disabled = false;
+        showKmzStatus(`Successfully parsed ${polygons.length} district polygons from ${fileName}!`, false);
+      } catch (err) {
+        showKmzStatus("Failed to parse KML: " + err.message, true);
+      }
+    }
+
+    function processKmzUpload(isSilentRestore = false) {
+      if (!parsedKmzGeoJson) return;
+
+      if (!isSilentRestore && currentUser && currentUser.role === 'viewer') {
+        alert("Permission Denied: Your account has Viewer-only access. Contact the administrator for Editor permissions to upload KMZ boundaries.");
+        return;
+      }
+
+      clearKmzLayer();
+
+      const layerGroup = L.featureGroup();
+
+      parsedKmzGeoJson.polygons.forEach(p => {
+        const poly = L.polygon(p.points, {
+          color: p.color,
+          weight: 2,
+          fillColor: p.color,
+          fillOpacity: 0.30 // 30% transparency shading as requested!
+        }).bindPopup(`<strong>${p.name}</strong><br><span class="text-xs text-slate-500">KMZ District Boundary</span>`);
+
+        layerGroup.addLayer(poly);
+      });
+
+      kmzLayer = layerGroup;
+      kmzLayer.addTo(map);
+      map.fitBounds(kmzLayer.getBounds().pad(0.05));
+
+      // Show active badge
+      const badge = document.getElementById("kmz-active-badge");
+      document.getElementById("kmz-badge-text").textContent = `KMZ: ${parsedKmzGeoJson.fileName || 'District Boundary'} (${parsedKmzGeoJson.polygons.length} districts)`;
+      badge.classList.remove("hidden");
+
+      if (!isSilentRestore) {
+        // Save to Standalone Web Server so all users see this boundary
+        fetch('/api/kmz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ geojson: parsedKmzGeoJson })
+        }).catch(err => console.error("KMZ server sync error:", err));
+
+        closeModal("kmz-modal");
+        alert(`Successfully imported and saved KMZ boundary with ${parsedKmzGeoJson.polygons.length} districts!`);
+      }
+      parsedKmzGeoJson = null;
+    }
+
+    function toggleKmzLayerVisibility() {
+      if (!kmzLayer) return;
+      isKmzVisible = !isKmzVisible;
+      if (isKmzVisible) {
+        map.addLayer(kmzLayer);
+        document.getElementById("kmz-visibility-toggle-btn").textContent = "Hide";
+      } else {
+        map.removeLayer(kmzLayer);
+        document.getElementById("kmz-visibility-toggle-btn").textContent = "Show";
+      }
+    }
+
+    function clearKmzLayer() {
+      if (kmzLayer) {
+        map.removeLayer(kmzLayer);
+        kmzLayer = null;
+      }
+      document.getElementById("kmz-active-badge").classList.add("hidden");
+    }
+
+    function showKmzStatus(msg, isError) {
+      const el = document.getElementById("kmz-status");
+      el.textContent = msg;
+      el.className = `mt-3 text-xs p-2.5 rounded-lg border ${isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`;
+      el.classList.remove("hidden");
+    }
+
+    // TRANSIT ROUTE PLANNER
+    function openTransitModalWithOrigin(originId) {
+      document.getElementById("route-origin-select").value = originId;
+      openModal("transit-modal");
+    }
+
+    function calculateAndDrawRoute() {
+      const originId = parseInt(document.getElementById("route-origin-select").value);
+      const destId = parseInt(document.getElementById("route-destination-select").value);
+
+      if (!originId || !destId || originId === destId) {
+        alert("Please select distinct Origin Exam Center and Destination College.");
+        return;
+      }
+
+      const c1 = colleges.find(c => c.id === originId);
+      const c2 = colleges.find(c => c.id === destId);
+      if (!c1 || !c2) return;
+
+      const dist = haversineDistance(c1.lat, c1.lon, c2.lat, c2.lon);
+      // Average 40 km/h transit speed + 15 min handling buffer
+      const transitMins = Math.round((dist / 40.0) * 60 + 15);
+
+      document.getElementById("route-distance-text").textContent = `${dist.toFixed(1)} km Road Distance`;
+      document.getElementById("route-eta-text").textContent = `ETA: ${transitMins} mins`;
+      document.getElementById("transit-result-card").classList.remove("hidden");
+
+      if (activeRoute) {
+        map.removeLayer(activeRoute);
+      }
+
+      // Draw polyline connecting the two colleges
+      activeRoute = L.polyline([[c1.lat, c1.lon], [c2.lat, c2.lon]], {
+        color: "#4F46E5",
+        weight: 4,
+        dashArray: "8, 8"
+      }).addTo(map);
+
+      map.fitBounds(activeRoute.getBounds().pad(0.2));
+      closeModal("transit-modal");
+    }
+
+    // ADD / EDIT / DELETE COLLEGE
+    function handleCollegeFormSubmit(e) {
+      e.preventDefault();
+      if (currentUser && currentUser.role === 'viewer') {
+        alert("Permission Denied: Your account has Viewer-only access. Contact the administrator for Editor permissions.");
+        return;
+      }
+
+      const code = document.getElementById("form-code").value.trim();
+      const name = document.getElementById("form-name").value.trim();
+      const district = document.getElementById("form-district").value.trim();
+      const type = document.getElementById("form-type") ? document.getElementById("form-type").value : "Government";
+      const capacity = parseInt(document.getElementById("form-capacity").value);
+      const lat = parseFloat(document.getElementById("form-lat").value);
+      const lon = parseFloat(document.getElementById("form-lon").value);
+      const branches = document.getElementById("form-branches").value.trim();
+      const isExam = document.getElementById("form-exam-centre").checked;
+
+      const newCol = {
+        id: Date.now(),
+        code,
+        name,
+        district,
+        type: resolveCollegeType(type, name),
+        seatingCapacity: capacity,
+        branches,
+        isExamCentre: isExam,
+        lat,
+        lon
+      };
+
+      colleges.push(newCol);
+      saveColleges();
+      renderCollegePins();
+      renderDirectoryList();
+      populateDropdowns();
+      closeModal("add-college-modal");
+      focusCollege(newCol.id);
+
+      // Persist to Server for all users
+      fetch('/api/colleges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCol)
+      }).catch(err => console.error("Error persisting college:", err));
+    }
+
+    function deleteCollege(id) {
+      if (currentUser && currentUser.role === 'viewer') {
+        alert("Permission Denied: Your account has Viewer-only access. Contact the administrator for Editor permissions.");
+        return;
+      }
+      if (!confirm("Are you sure you want to remove this college from the map?")) return;
+      colleges = colleges.filter(c => c.id !== id);
+      saveColleges();
+      renderCollegePins();
+      renderDirectoryList();
+      populateDropdowns();
+
+      // Delete from server
+      fetch('/api/colleges/' + id, { method: 'DELETE' }).catch(err => console.error("Error deleting college:", err));
+    }
+
+    // ================= AUTHENTICATION & CREDENTIALS MANAGEMENT =================
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const userField = document.getElementById("login-username");
+      const passField = document.getElementById("login-password");
+      const errBox = document.getElementById("login-error");
+      const btn = document.getElementById("login-submit-btn");
+
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Signing in...</span>`;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: userField.value.trim(),
+            password: passField.value.trim()
+          })
+        });
+
+        const data = await res.json();
+        if (data.success && data.user) {
+          currentUser = data.user;
+          localStorage.setItem("unimap_session", JSON.stringify(currentUser));
+          if (data.adminToken) {
+            localStorage.setItem("unimap_admin_token", data.adminToken);
+          }
+          if (data.user.role === 'admin' || data.user.username.toLowerCase() === 'satish') {
+            localStorage.setItem("unimap_is_owner", "true");
+          }
+          applyUserSession(currentUser);
+          closeModal("login-modal");
+          userField.value = "";
+          passField.value = "";
+          syncCollegesFromServer();
+          syncKmzFromServer();
+        } else {
+          errBox.textContent = data.message || "Invalid credentials. Please verify username and password.";
+          errBox.classList.remove("hidden");
+        }
+      } catch (err) {
+        errBox.textContent = "Connection error. Please try again: " + err.message;
+        errBox.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i><span>Sign In to Access Portal</span>`;
+      }
+    }
+
+    function fillCredentials(user, pass) {
+      document.getElementById("login-username").value = user;
+      document.getElementById("login-password").value = pass;
+      document.getElementById("login-error").classList.add("hidden");
+    }
+
+    function togglePasswordVisibility(id) {
+      const el = document.getElementById(id);
+      if (el.type === "password") {
+        el.type = "text";
+      } else {
+        el.type = "password";
+      }
+    }
+
+    function logoutUser() {
+      localStorage.removeItem("unimap_session");
+      currentUser = null;
+      document.getElementById("user-display-name").textContent = "Guest";
+      document.getElementById("user-role-badge").textContent = "LOGGED OUT";
+      document.getElementById("manage-users-btn").classList.add("hidden");
+      openModal("login-modal");
+    }
+
+    function openCredentialsModal() {
+      if (!currentUser || currentUser.role !== 'admin') {
+        alert("Only Administrators can manage user credentials.");
+        return;
+      }
+      document.getElementById("shareable-portal-url").textContent = window.location.origin;
+      openModal("credentials-modal");
+      loadUsersList();
+    }
+
+    async function loadUsersList() {
+      const container = document.getElementById("credentials-list");
+      container.innerHTML = `<div class="p-3 text-center text-slate-400">Loading user accounts...</div>`;
+
+      try {
+        const token = localStorage.getItem("unimap_admin_token") || '';
+        const res = await fetch('/api/users', {
+          headers: { 'x-admin-token': token }
+        });
+        const users = await res.json();
+        if (!res.ok) {
+          container.innerHTML = `<div class="p-3 text-center text-red-500">${users.message || 'Access Denied'}</div>`;
+          return;
+        }
+
+        document.getElementById("user-count-badge").textContent = `${users.length} configured`;
+
+        if (!Array.isArray(users) || users.length === 0) {
+          container.innerHTML = `<div class="p-3 text-center text-slate-400">No users found</div>`;
+          return;
+        }
+
+        container.innerHTML = "";
+        users.forEach(u => {
+          const item = document.createElement("div");
+          item.className = "p-2.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between";
+          
+          let roleTag = "";
+          if (u.role === 'admin') {
+            roleTag = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-100 text-purple-800">Admin</span>`;
+          } else if (u.role === 'editor') {
+            roleTag = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800">Editor</span>`;
+          } else {
+            roleTag = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-slate-100 text-slate-700">Viewer</span>`;
+          }
+
+          const isSelf = currentUser && currentUser.username.toLowerCase() === u.username.toLowerCase();
+
+          item.innerHTML = `
+            <div class="flex-1">
+              <div class="flex items-center space-x-2">
+                <span class="font-bold text-slate-800">${u.name || u.username}</span>
+                ${roleTag}
+                ${isSelf ? '<span class="text-[9px] text-blue-600 font-semibold">(You)</span>' : ''}
+              </div>
+              <div class="text-[10px] text-slate-500 mt-0.5 font-mono">
+                User: <span class="font-bold text-slate-700">${u.username}</span> | 
+                Pass: <span class="bg-slate-100 px-1 py-0.2 rounded font-bold text-slate-800">${u.password}</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-1">
+              <button 
+                onclick="fillUserForm('${u.username}', '${u.password}', '${u.name || ''}', '${u.role || 'editor'}')"
+                class="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                title="Edit this user"
+              >
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              ${!isSelf ? `
+                <button 
+                  onclick="deleteUser('${u.username}')"
+                  class="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                  title="Delete user"
+                >
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
+            </div>
+          `;
+          container.appendChild(item);
+        });
+      } catch (err) {
+        container.innerHTML = `<div class="p-3 text-center text-red-500">Failed to load credentials: ${err.message}</div>`;
+      }
+    }
+
+    function fillUserForm(username, password, name, role) {
+      document.getElementById("user-input-username").value = username;
+      document.getElementById("user-input-password").value = password;
+      document.getElementById("user-input-name").value = name;
+      document.getElementById("user-input-role").value = role;
+    }
+
+    async function handleUserFormSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById("user-input-username").value.trim();
+      const password = document.getElementById("user-input-password").value.trim();
+      const name = document.getElementById("user-input-name").value.trim();
+      const role = document.getElementById("user-input-role").value;
+      const token = localStorage.getItem("unimap_admin_token") || '';
+
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-token': token
+          },
+          body: JSON.stringify({ username, password, name, role })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Successfully saved credentials for "${username}"!`);
+          document.getElementById("user-input-username").value = "";
+          document.getElementById("user-input-password").value = "";
+          document.getElementById("user-input-name").value = "";
+          loadUsersList();
+        } else {
+          alert(data.message || "Failed to save user");
+        }
+      } catch (err) {
+        alert("Error saving credentials: " + err.message);
+      }
+    }
+
+    async function deleteUser(username) {
+      if (!confirm(`Are you sure you want to remove user "${username}"? They will no longer be able to log in.`)) return;
+      const token = localStorage.getItem("unimap_admin_token") || '';
+
+      try {
+        const res = await fetch('/api/users/' + encodeURIComponent(username), { 
+          method: 'DELETE',
+          headers: { 'x-admin-token': token }
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadUsersList();
+        } else {
+          alert(data.message || "Failed to delete user");
+        }
+      } catch (err) {
+        alert("Error deleting user: " + err.message);
+      }
+    }
+
+    // ================= OWNER-ONLY CREDENTIALS VISIBILITY =================
+    function checkOwnerMode() {
+      try {
+        const isOwnerSaved = localStorage.getItem("unimap_is_owner") === "true";
+        const urlParams = new URLSearchParams(window.location.search);
+        const isOwnerUrl = urlParams.has("owner") || urlParams.has("satish") || urlParams.has("admin");
+
+        if (isOwnerSaved || isOwnerUrl) {
+          showOwnerCredentials();
+          if (isOwnerUrl) {
+            localStorage.setItem("unimap_is_owner", "true");
+          }
+        } else {
+          hideOwnerCredentials(false);
+        }
+      } catch (e) {
+        hideOwnerCredentials(false);
+      }
+    }
+
+    function showOwnerCredentials() {
+      const panel = document.getElementById("owner-preset-credentials");
+      if (panel) panel.classList.remove("hidden");
+    }
+
+    function hideOwnerCredentials(clearStorage = true) {
+      const panel = document.getElementById("owner-preset-credentials");
+      if (panel) panel.classList.add("hidden");
+      if (clearStorage) {
+        localStorage.removeItem("unimap_is_owner");
+      }
+    }
+
+    function toggleOwnerCredentialsPrompt() {
+      const panel = document.getElementById("owner-preset-credentials");
+      if (panel && !panel.classList.contains("hidden")) {
+        hideOwnerCredentials(true);
+        return;
+      }
+
+      // If user is already logged in as satish or admin, unlock immediately
+      if (currentUser && (currentUser.role === 'admin' || currentUser.username.toLowerCase() === 'satish')) {
+        localStorage.setItem("unimap_is_owner", "true");
+        showOwnerCredentials();
+        return;
+      }
+
+      const pass = prompt("Owner Verification: Enter your Satish or Admin password to reveal presets on this device:");
+      if (pass === "exam2026" || pass === "admin123" || pass === "satish" || pass === "admin") {
+        localStorage.setItem("unimap_is_owner", "true");
+        showOwnerCredentials();
+        alert("Owner verified. Preset credentials unlocked on this device.");
+      } else if (pass !== null && pass.trim() !== "") {
+        alert("Incorrect password. Access denied.");
+      }
+    }
+
+    function copyShareableLinkDetails() {
+      const url = window.location.origin;
+      const text = `🌐 UniMap GIS Portal\n` +
+        `Web Link: ${url}\n\n` +
+        `Authorized Credentials:\n` +
+        `• Admin (Full Edit & User Management):\n  Username: satish | Password: exam2026\n` +
+        `• Officer (College & Exam Center Editor):\n  Username: officer | Password: officer2026\n` +
+        `• Guest Viewer:\n  Username: viewer | Password: viewer123\n\n` +
+        `Open the link in any web browser, log in with the credentials above to view, analyze, and edit!`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Copied shareable portal link and login credentials to clipboard! You can now send it to colleagues via Email or WhatsApp.");
+      }).catch(err => {
+        prompt("Copy this shareable link and login details:", text);
+      });
+    }
+
+    // Kickstart application on load
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
