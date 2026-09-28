@@ -2,13 +2,13 @@
   {
     "id": 1,
     "code": "0",
-    "name": "Van Bhavan",
-    "district": "Lucknow",
-    "type": "Government",
-    "seatingCapacity": 1,
-    "branches": "",
-    "isExamCentre": false,
-    "lat": 26.84116,
-    "lon": 80.94661
+    "name": "Dr. Rammanohar Lohia Avadh University",
+    "district": "Ayodhya",
+    "type": " University",
+    "seatingCapacity": 2500,
+    "branches": "engineering, science, commerce, arts, law, education",
+    "isExamCentre": true,
+    "lat": 26.753654,
+    "lon": 82.142606
   }
 ]
