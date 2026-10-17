@@ -49,133 +49,7 @@ object SpreadsheetParser {
                 return Result.failure(Exception("Uploaded file is empty"))
             }
 
-            val firstLine = lines.first().map { it.trim() }
-            val col4Dbl = firstLine.getOrNull(4)?.replace(",", ".")?.toDoubleOrNull()
-            val col5Dbl = firstLine.getOrNull(5)?.replace(",", ".")?.toDoubleOrNull()
-            val isFirstLineData = col4Dbl != null && col5Dbl != null &&
-                    !firstLine[0].lowercase().contains("district") &&
-                    !firstLine[1].lowercase().contains("code")
-
-            val isHeaderRow = !isFirstLineData && firstLine.any {
-                val l = it.lowercase()
-                l.contains("district") || l.contains("code") || l.contains("name") || l.contains("college") ||
-                l.contains("type") || l.contains("lat") || l.contains("lon") || l.contains("lng")
-            }
-
-            var districtCol = -1
-            var codeCol = -1
-            var nameCol = -1
-            var typeCol = -1
-            var latCol = -1
-            var lonCol = -1
-            var branchCol = -1
-            var capacityCol = -1
-            var studentCol = -1
-            var examCentreCol = -1
-            var addressCol = -1
-            var phoneCol = -1
-            var emailCol = -1
-
-            if (isHeaderRow) {
-                val header = firstLine.map { it.lowercase() }
-                districtCol = header.indexOfFirst { it.contains("district") || it.contains("zone") || it.contains("region") }
-                codeCol = header.indexOfFirst { it.contains("code") }
-                nameCol = header.indexOfFirst { (it.contains("name") || it.contains("college")) && !it.contains("code") && !it.contains("district") && !it.contains("type") }
-                if (nameCol == -1) nameCol = header.indexOfFirst { it.contains("name") || it.contains("college") }
-                typeCol = header.indexOfFirst { it.contains("type") || it.contains("management") || it.contains("category") || it.contains("status") || it.contains("affiliation") }
-                latCol = header.indexOfFirst { it.contains("lat") }
-                lonCol = header.indexOfFirst { it.contains("lon") || it.contains("lng") }
-                branchCol = header.indexOfFirst { it.contains("branch") || it.contains("course") || it.contains("dept") || it.contains("degree") || it.contains("stream") }
-                capacityCol = header.indexOfFirst { it.contains("capacity") || it.contains("seating") || it.contains("seat") }
-                studentCol = header.indexOfFirst {
-                    it.contains("maximum student count per day") || it.contains("max student") || it.contains("max count") ||
-                    it.contains("per day") || it.contains("student") || it.contains("population")
-                }
-                examCentreCol = header.indexOfFirst { it.contains("exam") || it.contains("centre") || it.contains("center") }
-                addressCol = header.indexOfFirst { it.contains("address") || it.contains("loc") }
-                phoneCol = header.indexOfFirst { it.contains("phone") || it.contains("contact") }
-                emailCol = header.indexOfFirst { it.contains("email") }
-            }
-
-            // Column mappings with fallbacks:
-            // Column 4 (index 3) titled 'type'
-            // Column 7 (index 6) Seating Capacity
-            if (districtCol == -1) districtCol = 0
-            if (codeCol == -1) codeCol = 1
-            if (nameCol == -1) nameCol = 2
-            if (typeCol == -1) typeCol = 3
-            if (latCol == -1) latCol = 4
-            if (lonCol == -1) lonCol = 5
-            if (capacityCol == -1) capacityCol = 6
-
-            val rows = if (isHeaderRow) lines.drop(1) else lines
-
-            val list = mutableListOf<CollegeEntity>()
-            rows.forEachIndexed { index, cols ->
-                if (cols.isEmpty() || cols.all { it.isBlank() }) return@forEachIndexed
-                val district = if (districtCol in cols.indices && cols[districtCol].isNotBlank()) cols[districtCol].trim() else "District ${(index % 3) + 1}"
-                val code = if (codeCol in cols.indices && cols[codeCol].isNotBlank()) cols[codeCol].trim() else "COL-${index + 101}"
-                val name = if (nameCol in cols.indices && cols[nameCol].isNotBlank()) cols[nameCol].trim() else "College #${index + 1}"
-                
-                // Read type from column 4 titled 'type' or fallbacks
-                var rawType = if (typeCol in cols.indices && cols[typeCol].isNotBlank()) cols[typeCol].trim() else ""
-                if (rawType.isBlank() && 3 in cols.indices) rawType = cols[3].trim()
-                if (rawType.isBlank() || !isKnownType(rawType)) {
-                    val fallbackType = cols.firstOrNull { isKnownType(it) }
-                    if (fallbackType != null) rawType = fallbackType.trim()
-                }
-                val colType = resolveCollegeType(rawType, name)
-                
-                var rawLat = if (latCol in cols.indices) parseCoordinate(cols[latCol]) else null
-                var rawLon = if (lonCol in cols.indices) parseCoordinate(cols[lonCol]) else null
-
-                // Auto-swap check for India (Lat ~15-25, Lon ~72-85)
-                if (rawLat != null && rawLon != null && rawLat > 50.0 && rawLon < 45.0) {
-                    val tmp = rawLat
-                    rawLat = rawLon
-                    rawLon = tmp
-                }
-
-                val lat = rawLat ?: (21.1458 + (index % 10) * 0.01)
-                val lon = rawLon ?: (79.0882 + (index % 10) * 0.01)
-                val branches = if (branchCol != -1 && branchCol in cols.indices && cols[branchCol].isNotBlank()) cols[branchCol].trim() else "BA, BSc, BCom, MA"
-                
-                // Read seating capacity from Column 7 (index 6) or capacityCol
-                val rawCap = when {
-                    capacityCol in cols.indices && cols[capacityCol].isNotBlank() -> cols[capacityCol]
-                    6 in cols.indices && cols[6].isNotBlank() -> cols[6]
-                    7 in cols.indices && cols[7].isNotBlank() -> cols[7]
-                    else -> ""
-                }
-                val capacity = rawCap.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 1500
-                val students = if (studentCol != -1 && studentCol in cols.indices) cols[studentCol].toIntOrNull() ?: 1000 else 1000
-                val examStr = if (examCentreCol != -1 && examCentreCol in cols.indices) cols[examCentreCol].lowercase() else ""
-                val isExam = examStr.contains("yes") || examStr.contains("true") || examStr == "1" || capacity >= 2000
-                val address = if (addressCol != -1 && addressCol in cols.indices && cols[addressCol].isNotBlank()) cols[addressCol].trim() else "$district, Campus Zone"
-                val phone = if (phoneCol != -1 && phoneCol in cols.indices) cols[phoneCol].trim() else ""
-                val email = if (emailCol != -1 && emailCol in cols.indices) cols[emailCol].trim() else ""
-
-                list.add(
-                    CollegeEntity(
-                        id = (index + 1).toLong(),
-                        name = name,
-                        code = code,
-                        latitude = lat,
-                        longitude = lon,
-                        branches = branches,
-                        seatingCapacity = capacity,
-                        studentPopulation = students,
-                        isExamCentre = isExam,
-                        address = address,
-                        district = district,
-                        collegeType = colType,
-                        contactPhone = phone,
-                        contactEmail = email
-                    )
-                )
-            }
-
-            Result.success(list)
+            parseRows(lines)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -350,16 +224,32 @@ object SpreadsheetParser {
             return Result.failure(Exception("No readable data found in sheet.xml"))
         }
 
+        return parseRows(sheetRows)
+    }
+
+    /**
+     * Unified, robust row parser supporting:
+     * - Center Type column ("Self Center", "Exam Center", "Both", "College Center")
+     * - isExamCenter column (TRUE/FALSE, Yes/No, 1/0)
+     * - isSelfCenter column (TRUE/FALSE, Yes/No, 1/0)
+     * - College Type / Management Category ("Government", "Aided", "Self Finance", "Autonomous")
+     */
+    fun parseRows(sheetRows: List<List<String>>): Result<List<CollegeEntity>> {
+        if (sheetRows.isEmpty()) {
+            return Result.failure(Exception("Uploaded file contains no rows"))
+        }
+
         // Scan first 10 rows for the header row
         var headerRowIdx = -1
         for (rIdx in 0 until minOf(10, sheetRows.size)) {
             val r = sheetRows[rIdx].map { it.lowercase().trim() }
-            val hasType = r.any { it == "type" || it.contains("type") || it.contains("management") || it.contains("category") }
-            val hasName = r.any { it.contains("name") || it.contains("college") }
+            val hasType = r.any { it.contains("type") || it.contains("management") || it.contains("category") }
+            val hasName = r.any { it.contains("name") || it.contains("college") || it.contains("institute") }
             val hasCode = r.any { it.contains("code") }
             val hasLat = r.any { it.contains("lat") }
             val hasCap = r.any { it.contains("seat") || it.contains("cap") }
-            if (hasType || (hasName && (hasCode || hasLat || hasCap))) {
+            val hasCenter = r.any { it.contains("center") || it.contains("centre") }
+            if (hasType || (hasName && (hasCode || hasLat || hasCap || hasCenter))) {
                 headerRowIdx = rIdx
                 break
             }
@@ -376,60 +266,119 @@ object SpreadsheetParser {
         var studentCol = -1
         var examCol = -1
         var selfCol = -1
+        var centerTypeCol = -1
         var addressCol = -1
+        var phoneCol = -1
+        var emailCol = -1
 
         if (headerRowIdx != -1) {
             val header = sheetRows[headerRowIdx].map { it.lowercase().trim() }
+
+            // 1. Center Type column (e.g. "center type", "centre type", "center", "centre", "type of center")
+            // (Exclude columns that are specifically self center or exam center)
+            centerTypeCol = header.indexOfFirst {
+                !it.contains("exam") && !it.contains("self") && (
+                    it.contains("center type") || it.contains("centre type") ||
+                    it.contains("type of center") || it.contains("type of centre") ||
+                    it.contains("center_type") || it.contains("centre_type") ||
+                    it.contains("centertype") || it.contains("centretype") ||
+                    it.contains("center status") || it.contains("centre status") ||
+                    it.contains("center category") || it.contains("centre category") ||
+                    it == "center" || it == "centre"
+                )
+            }
+            if (centerTypeCol == -1) {
+                centerTypeCol = header.indexOfFirst {
+                    !it.contains("exam") && !it.contains("self") &&
+                    (it.contains("center") || it.contains("centre")) &&
+                    (it.contains("type") || it.contains("status") || it.contains("cat"))
+                }
+            }
+
+            // 2. Exam Center column (e.g. "isexamcenter", "is exam center", "exam center", "exam centre", "isexamcentre", "exam", "is exam")
+            examCol = header.indexOfFirst {
+                it.contains("exam")
+            }
+
+            // 3. Self Center column (e.g. "isselfcenter", "is self center", "self center", "self centre", "isselfcentre", "self", "is self")
+            selfCol = header.indexOfFirst {
+                it.contains("self") && !it.contains("finance")
+            }
+
+            // 4. College Management Type column (MUST NOT be the center type column!)
+            typeCol = header.indexOfFirst {
+                val idx = header.indexOf(it)
+                idx != centerTypeCol && idx != selfCol && idx != examCol && (
+                    it.contains("management") || it.contains("affiliation") ||
+                    it == "college type" || it == "collegetype" || it == "type" ||
+                    (it.contains("type") && !it.contains("center") && !it.contains("centre")) ||
+                    it.contains("finance") || it.contains("category")
+                )
+            }
+
+            // 5. District column
             districtCol = header.indexOfFirst { it.contains("district") || it.contains("zone") || it.contains("region") || it.contains("city") }
+
+            // 6. Code column
             codeCol = header.indexOfFirst { it.contains("code") }
-            nameCol = header.indexOfFirst { (it.contains("name") || it.contains("college") || it.contains("institute")) && !it.contains("code") && !it.contains("district") && !it.contains("type") }
-            if (nameCol == -1) nameCol = header.indexOfFirst { it.contains("name") || it.contains("college") }
-            typeCol = header.indexOfFirst { it == "type" || it.contains("type") || it.contains("management") || it.contains("category") || it.contains("status") || it.contains("affiliation") }
+
+            // 7. Name column
+            nameCol = header.indexOfFirst {
+                (it.contains("name") || it.contains("college") || it.contains("institute")) &&
+                !it.contains("code") && !it.contains("district") && !it.contains("type")
+            }
+            if (nameCol == -1) {
+                nameCol = header.indexOfFirst { it.contains("name") || it.contains("college") }
+            }
+
+            // 8. Coordinates
             latCol = header.indexOfFirst { it.contains("lat") }
             lonCol = header.indexOfFirst { it.contains("lon") || it.contains("lng") }
-            branchCol = header.indexOfFirst { it.contains("branch") || it.contains("course") || it.contains("dept") || it.contains("stream") }
+
+            // 9. Branches
+            branchCol = header.indexOfFirst { it.contains("branch") || it.contains("course") || it.contains("dept") || it.contains("stream") || it.contains("degree") }
+
+            // 10. Seating Capacity
             capCol = header.indexOfFirst { it.contains("capacity") || it.contains("seating") || it.contains("seat") || it.contains("intake") }
+
+            // 11. Student count
             studentCol = header.indexOfFirst {
                 it.contains("maximum student count per day") || it.contains("max student") || it.contains("max count") ||
                 it.contains("per day") || it.contains("student") || it.contains("population")
             }
-            examCol = header.indexOfFirst { it.contains("exam") }
-            selfCol = header.indexOfFirst { it.contains("self") && (it.contains("cent") || it.contains("ctr") || it.contains("venue") || it.contains("status")) }
-            if (selfCol == -1) selfCol = header.indexOfFirst { it.contains("self") && !it.contains("finance") }
-            addressCol = header.indexOfFirst { it.contains("address") }
+
+            // 12. Address & Contact
+            addressCol = header.indexOfFirst { it.contains("address") || it.contains("loc") }
+            phoneCol = header.indexOfFirst { it.contains("phone") || it.contains("contact") || it.contains("mobile") }
+            emailCol = header.indexOfFirst { it.contains("email") || it.contains("mail") }
         }
 
-        // Column fallback assignments:
-        // Column 4 (index 3) titled 'type'
-        // Column 7 (index 6) Seating Capacity
-        // Column 5 (index 4) Latitude
-        // Column 6 (index 5) Longitude
-        if (typeCol == -1) typeCol = 3
-        if (capCol == -1) capCol = 6
-        if (latCol == -1) latCol = 4
-        if (lonCol == -1) lonCol = 5
+        // Positional fallbacks if no headers were detected:
         if (districtCol == -1) districtCol = 0
         if (codeCol == -1) codeCol = 1
         if (nameCol == -1) nameCol = 2
+        if (typeCol == -1) typeCol = 3
+        if (latCol == -1) latCol = 4
+        if (lonCol == -1) lonCol = 5
+        if (capCol == -1) capCol = 6
 
         val rows = if (headerRowIdx != -1) sheetRows.drop(headerRowIdx + 1) else sheetRows
 
         val list = mutableListOf<CollegeEntity>()
         rows.forEachIndexed { i, r ->
             if (r.isEmpty() || r.all { it.isBlank() }) return@forEachIndexed
+
             val district = if (districtCol in r.indices && r[districtCol].isNotBlank()) r[districtCol].trim() else "District ${(i % 3) + 1}"
             val code = if (codeCol in r.indices && r[codeCol].isNotBlank()) r[codeCol].trim() else "COL-${i + 101}"
             val name = if (nameCol in r.indices && r[nameCol].isNotBlank()) r[nameCol].trim() else "College #${i + 1}"
-            
-            // Read type from column 4 titled 'type' (index 3) or fallbacks
-            var rawType = if (typeCol in r.indices && r[typeCol].isNotBlank()) r[typeCol].trim() else ""
-            if (rawType.isBlank() && 3 in r.indices) rawType = r[3].trim()
+
+            var rawType = if (typeCol != -1 && typeCol in r.indices && r[typeCol].isNotBlank()) r[typeCol].trim() else ""
             if (rawType.isBlank() || !isKnownType(rawType)) {
                 val fallbackType = r.firstOrNull { isKnownType(it) }
                 if (fallbackType != null) rawType = fallbackType.trim()
             }
             val colType = resolveCollegeType(rawType, name)
-            
+
             var rawLat = if (latCol in r.indices) parseCoordinate(r[latCol]) else null
             var rawLon = if (lonCol in r.indices) parseCoordinate(r[lonCol]) else null
 
@@ -440,28 +389,65 @@ object SpreadsheetParser {
                 rawLon = tmp
             }
 
-            val lat = rawLat ?: (21.1458 + (i % 10) * 0.01)
-            val lon = rawLon ?: (79.0882 + (i % 10) * 0.01)
+            val lat = rawLat ?: (28.6139 + (i % 10) * 0.015)
+            val lon = rawLon ?: (77.2090 + (i % 10) * 0.015)
             val branches = if (branchCol != -1 && branchCol in r.indices && r[branchCol].isNotBlank()) r[branchCol].trim() else "BA, BSc, BCom, MA"
-            
-            // Read seating capacity from Column 7 (index 6) or capCol
+
             val rawCap = when {
                 capCol in r.indices && r[capCol].isNotBlank() -> r[capCol]
                 6 in r.indices && r[6].isNotBlank() -> r[6]
-                7 in r.indices && r[7].isNotBlank() -> r[7]
                 else -> ""
             }
             val cap = rawCap.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 1500
             val std = if (studentCol != -1 && studentCol in r.indices) r[studentCol].replace(Regex("[^0-9]"), "").toIntOrNull() ?: 1000 else 1000
-            val isExam = if (examCol != -1 && examCol in r.indices) {
-                val e = r[examCol].lowercase()
-                e.contains("yes") || e.contains("true") || e == "1" || cap >= 2000
-            } else cap >= 2000
-            val isSelf = if (selfCol != -1 && selfCol in r.indices) {
-                val s = r[selfCol].lowercase()
-                s.contains("yes") || s.contains("true") || s == "1" || s.contains("self")
-            } else false
+
+            // ----------------------------------------------------
+            // PIN RESOLUTION: Exam Center & Self Center Pins
+            // ----------------------------------------------------
+            var isExam = false
+            var isSelf = false
+
+            // A. Check dedicated isExamCenter column (e.g. isExamCenter = TRUE, Yes, 1, Exam)
+            if (examCol != -1 && examCol in r.indices) {
+                val exVal = r[examCol].trim()
+                if (isTruthy(exVal) || exVal.lowercase().contains("exam") || exVal.lowercase().contains("both")) {
+                    isExam = true
+                } else if (isFalsy(exVal)) {
+                    isExam = false
+                }
+            }
+
+            // B. Check dedicated isSelfCenter column (e.g. isSelfCenter = TRUE, Yes, 1, Self)
+            if (selfCol != -1 && selfCol in r.indices) {
+                val selfVal = r[selfCol].trim()
+                if (isTruthy(selfVal) || selfVal.lowercase().contains("self") || selfVal.lowercase().contains("both")) {
+                    isSelf = true
+                } else if (isFalsy(selfVal)) {
+                    isSelf = false
+                }
+            }
+
+            // C. Check centerType column (e.g. "center type" with values "Self Center", "Exam Center", "Both", "College Center")
+            if (centerTypeCol != -1 && centerTypeCol in r.indices) {
+                val ct = r[centerTypeCol].trim().lowercase()
+                if (ct.contains("both") || (ct.contains("exam") && ct.contains("self"))) {
+                    isExam = true
+                    isSelf = true
+                } else if (ct.contains("self")) {
+                    isSelf = true
+                } else if (ct.contains("exam")) {
+                    isExam = true
+                }
+            }
+
+            // Fallback for exam centre ONLY if NO center columns were provided in sheet
+            if (examCol == -1 && selfCol == -1 && centerTypeCol == -1 && cap >= 2000) {
+                isExam = true
+            }
+
             val addr = if (addressCol != -1 && addressCol in r.indices && r[addressCol].isNotBlank()) r[addressCol].trim() else "$district, Affiliated Campus"
+            val phone = if (phoneCol != -1 && phoneCol in r.indices) r[phoneCol].trim() else ""
+            val email = if (emailCol != -1 && emailCol in r.indices) r[emailCol].trim() else ""
 
             list.add(
                 CollegeEntity(
@@ -477,12 +463,32 @@ object SpreadsheetParser {
                     isSelfCentre = isSelf,
                     address = addr,
                     district = district,
-                    collegeType = colType
+                    collegeType = colType,
+                    contactPhone = phone,
+                    contactEmail = email
                 )
             )
         }
 
         return Result.success(list)
+    }
+
+    private fun isTruthy(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val s = raw.trim().lowercase()
+        val num = s.toDoubleOrNull()
+        if (num != null && num > 0.0) return true
+        return s == "true" || s == "yes" || s == "y" || s == "1" || s == "t" ||
+               s.contains("true") || s.contains("yes") || s == "checked" ||
+               s == "self" || s == "exam" || s == "both" || s == "pass"
+    }
+
+    private fun isFalsy(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return false
+        val s = raw.trim().lowercase()
+        val num = s.toDoubleOrNull()
+        if (num != null && num == 0.0) return true
+        return s == "false" || s == "no" || s == "n" || s == "0" || s == "f" || s == "none" || s == "null" || s == "nil"
     }
 
     private fun colLetterToIndex(ref: String?): Int {

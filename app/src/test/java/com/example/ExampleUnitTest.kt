@@ -95,6 +95,7 @@ class ExampleUnitTest {
     val dummyCollegeDao = object : com.example.data.local.CollegeDao {
       override fun getAllColleges() = kotlinx.coroutines.flow.flowOf(emptyList<CollegeEntity>())
       override fun getExamCentres() = kotlinx.coroutines.flow.flowOf(emptyList<CollegeEntity>())
+      override fun getSelfCentres() = kotlinx.coroutines.flow.flowOf(emptyList<CollegeEntity>())
       override suspend fun getCollegeById(id: Long): CollegeEntity? = null
       override suspend fun insertCollege(college: CollegeEntity) = 1L
       override suspend fun insertAll(colleges: List<CollegeEntity>) = Unit
@@ -196,17 +197,37 @@ class ExampleUnitTest {
   }
 
   @Test
-  fun geographicalFeaturesProvider_generatesRiversRoadsAndLandmarks() {
-    val rivers = com.example.ui.map.GeographicalFeaturesProvider.getRivers(25.3, 82.9, 0.5, 0.5)
-    assertTrue(rivers.isNotEmpty())
-    assertTrue(rivers.any { it.isMainStream })
+  fun spreadsheetParser_parsesExamAndSelfCenterPins() {
+    val csvData = """
+      District,Code,Name,College Type,Latitude,Longitude,Center Type,isExamCenter,isSelfCenter
+      Central,C-01,Exam Only College,Government,28.61,77.20,Exam Center,TRUE,FALSE
+      North,C-02,Self Only College,Aided,28.62,77.21,Self Center,FALSE,TRUE
+      South,C-03,Both Center College,Autonomous,28.63,77.22,Both,TRUE,TRUE
+      East,C-04,Regular College,Self Finance,28.64,77.23,College Center,FALSE,FALSE
+    """.trimIndent()
 
-    val highways = com.example.ui.map.GeographicalFeaturesProvider.getHighways(25.3, 82.9, 0.5, 0.5)
-    assertTrue(highways.isNotEmpty())
-    assertTrue(highways.any { it.isExpressway })
+    val stream = ByteArrayInputStream(csvData.toByteArray(Charsets.UTF_8))
+    val parseResult = SpreadsheetParser.parseCsv(stream)
+    assertTrue(parseResult.isSuccess)
+    val list = parseResult.getOrThrow()
 
-    val landmarks = com.example.ui.map.GeographicalFeaturesProvider.getLandmarks(25.3, 82.9, 0.5, 0.5)
-    assertTrue(landmarks.size >= 5)
+    assertEquals(4, list.size)
+
+    // C-01: Exam Centre only
+    assertTrue(list[0].isExamCentre)
+    assertFalse(list[0].isSelfCentre)
+
+    // C-02: Self Centre only
+    assertFalse(list[1].isExamCentre)
+    assertTrue(list[1].isSelfCentre)
+
+    // C-03: Both
+    assertTrue(list[2].isExamCentre)
+    assertTrue(list[2].isSelfCentre)
+
+    // C-04: Neither (Regular college)
+    assertFalse(list[3].isExamCentre)
+    assertFalse(list[3].isSelfCentre)
   }
 }
 

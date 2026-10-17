@@ -246,18 +246,30 @@ fun SpreadsheetUploadDialog(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = "Supported Excel (.xlsx) / CSV Column Order:",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                text = "Supported Excel (.xlsx) / CSV Columns:",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "1. District Name\n2. College Code\n3. College Name\n4. Type (GOVERNMENT / AIDED / SELF FINANCE / Autonomous)\n5. Latitude\n6. Longitude\n\nOptional additional columns: Branches, Seating Capacity, Max Students, Exam Centre, Address",
+                                text = "• District (e.g. New Delhi)\n• College Code (e.g. COL-101)\n• College Name (e.g. St. Stephen's College)\n• College Type (Government / Aided / Self Finance / Autonomous)\n• Latitude & Longitude (e.g. 28.6139, 77.2090)\n• Seating Capacity & Branches",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Center Pins Formatting (Exam & Self Pins):",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Method 1: Separate Columns\n• isExamCenter: TRUE / FALSE or Yes / No\n• isSelfCenter: TRUE / FALSE or Yes / No\n\nMethod 2: Single Column\n• Center Type: 'Exam Center', 'Self Center', 'Both', or 'College Center'\n\nBoth methods work seamlessly together! Colleges with isSelfCenter = TRUE display the [🎯 SELF] pin on top.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp
+                                    fontSize = 10.5.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface
                             )

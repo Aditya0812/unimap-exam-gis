@@ -785,19 +785,23 @@
         <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelFileSelect(event)" />
       </div>
 
-      <!-- 6-Column Format Helper -->
+      <!-- Column Format Helper -->
       <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-        <div class="font-semibold text-slate-700 text-[11px] mb-1 flex items-center justify-between">
-          <span>Excel 6-Column Layout:</span>
-          <button onclick="downloadSampleExcelTemplate()" class="text-blue-600 hover:underline text-[10px]">Download sample format</button>
+        <div class="font-semibold text-slate-700 text-[11px] mb-1.5 flex items-center justify-between">
+          <span>Excel Column Format:</span>
+          <button onclick="downloadSampleExcelTemplate()" class="text-blue-600 hover:underline text-[10px] font-semibold flex items-center space-x-1">
+            <i class="fa-solid fa-download"></i>
+            <span>Download Sample Template</span>
+          </button>
         </div>
-        <div class="grid grid-cols-2 gap-1 text-[10px] text-slate-500">
-          <div>1. College Code / District</div>
-          <div>2. College Name / Code</div>
-          <div>3. District / College Name</div>
-          <div>4. Seating Capacity / Type</div>
-          <div class="font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">5. Latitude (5th col)</div>
-          <div class="font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded">6. Longitude (6th col)</div>
+        <p class="text-[10px] text-slate-500 mb-2">
+          Columns: <strong>Code, Name, District, Type, Latitude, Longitude, Seating Capacity, CenterType</strong>
+        </p>
+        <div class="p-2 rounded-lg bg-white border border-slate-200 text-[10px] space-y-1">
+          <div class="font-bold text-slate-700">📌 CenterType Values (Auto Pin Generation):</div>
+          <div class="flex items-center space-x-2"><span class="px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold font-mono">exam</span><span>★ Exam Center Pin (Hosts external colleges)</span></div>
+          <div class="flex items-center space-x-2"><span class="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 font-bold font-mono">self</span><span>🏠 Self Center Pin (Students test in own college)</span></div>
+          <div class="flex items-center space-x-2"><span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold font-mono">none</span><span>🏫 College Center Pin (Regular affiliated college)</span></div>
         </div>
       </div>
 
@@ -1374,14 +1378,23 @@
     let filterBoundaryOnly = false;
     let lastCalculatedNearby = [];
 
-    // Helper to extract and normalize center classification
+    // Helper to extract and normalize center classification: 'self' | 'exam' | 'none'
     function getCollegeCenterType(col) {
       if (!col) return "none";
-      if (col.centerType) {
+      if (col.centerType !== undefined && col.centerType !== null) {
         const ct = String(col.centerType).trim().toLowerCase();
-        if (ct.includes("self") || ct.includes("home") || ct.includes("own")) return "self";
-        if (ct.includes("exam") || ct.includes("host") || ct.includes("centre") || ct.includes("center")) return "exam";
-        if (ct.includes("none") || ct.includes("regular") || ct.includes("affil")) return "none";
+        if (ct === "self" || (ct.includes("self") && !ct.includes("exam")) || ct.includes("home") || ct.includes("own")) {
+          return "self";
+        }
+        if (ct === "exam" || (ct.includes("exam") && !ct.includes("self")) || ct.includes("host")) {
+          return "exam";
+        }
+        if (ct.includes("both") || (ct.includes("exam") && ct.includes("self"))) {
+          return "exam";
+        }
+        if (ct === "none" || ct.includes("none") || ct.includes("college") || ct.includes("regular") || ct.includes("affil")) {
+          return "none";
+        }
       }
       if (col.isSelfCentre) return "self";
       if (col.isExamCentre) return "exam";
@@ -2963,8 +2976,10 @@
           let codeColIndex = -1;
           let nameColIndex = -1;
           let districtColIndex = -1;
-          let examColIndex = -1;
+          let centerTypeColIndex = -1;
           let branchColIndex = -1;
+          let selfColIdx = -1;
+          let examColIdx = -1;
 
           if (!isFirstRowData && json.length > 1) {
             startRow = 1;
@@ -2975,18 +2990,37 @@
             if (hLon !== -1) lonColIndex = hLon;
 
             codeColIndex = headers.findIndex(h => h.includes("code"));
-            districtColIndex = headers.findIndex(h => h.includes("district") || h.includes("zone") || h.includes("region"));
+            districtColIndex = headers.findIndex(h => h.includes("district") || h.includes("zone") || h.includes("region") || h.includes("city"));
             nameColIndex = headers.findIndex(h => (h.includes("name") || h.includes("college") || h.includes("institute")) && !h.includes("code") && !h.includes("district") && !h.includes("type"));
             if (nameColIndex === -1) nameColIndex = headers.findIndex(h => h.includes("name") || h.includes("college"));
 
-            const hType = headers.findIndex(h => h === "type" || h.includes("type") || h.includes("category") || h.includes("management") || h.includes("status"));
+            const hType = headers.findIndex(h => 
+              h === "type" || h === "college type" || h === "collegetype" || h.includes("management") || h.includes("category") || h.includes("affiliation") ||
+              (h.includes("type") && !h.includes("center") && !h.includes("centre"))
+            );
             if (hType !== -1) typeColIndex = hType;
 
             const hCap = headers.findIndex(h => h.includes("capacity") || h.includes("seating") || h.includes("seat") || h.includes("intake") || h.includes("student"));
             if (hCap !== -1) capacityColIndex = hCap;
 
-            branchColIndex = headers.findIndex(h => h.includes("branch") || h.includes("stream") || h.includes("course"));
-            examColIndex = headers.findIndex(h => h.includes("exam"));
+            branchColIndex = headers.findIndex(h => h.includes("branch") || h.includes("stream") || h.includes("course") || h.includes("dept"));
+
+            // Detect CenterType column (e.g. CenterType, Center Type, center_type, centre type, center, centre, role)
+            centerTypeColIndex = headers.findIndex(h => 
+              h === "centertype" || h === "center type" || h === "center_type" ||
+              h === "centretype" || h === "centre type" || h === "centre_type" ||
+              h.includes("centertype") || h.includes("centretype") ||
+              (h.includes("center") && (h.includes("type") || h.includes("status") || h.includes("role") || h.includes("cat"))) ||
+              (h.includes("centre") && (h.includes("type") || h.includes("status") || h.includes("role") || h.includes("cat"))) ||
+              h === "center" || h === "centre" || h === "role" || h.includes("center role")
+            );
+            if (centerTypeColIndex === -1) {
+              centerTypeColIndex = headers.findIndex(h => (h.includes("center") || h.includes("centre")) && !h.includes("college") && !h.includes("name"));
+            }
+
+            // Fallback for separate legacy columns
+            selfColIdx = headers.findIndex(h => h.includes("self") && !h.includes("finance"));
+            examColIdx = headers.findIndex(h => h.includes("exam"));
           } else {
             startRow = 0;
           }
@@ -3112,20 +3146,45 @@
               }
             }
 
-            // 5. Center Classification (Exam Center / Self Center / None)
+            // 5. Center Classification (self, exam, none)
+            // Single input CenterType column: 'self', 'exam', 'none'
+            // Internally generates isSelfCentre and isExamCentre booleans
             let centerType = "none";
-            if (examColIndex !== -1 && row[examColIndex]) {
-              const eStr = String(row[examColIndex]).toLowerCase().trim();
-              if (eStr.includes("self") || eStr.includes("home") || eStr.includes("own")) {
+            if (centerTypeColIndex !== -1 && row[centerTypeColIndex] !== undefined && row[centerTypeColIndex] !== null) {
+              const rawCt = String(row[centerTypeColIndex]).trim().toLowerCase();
+              if (rawCt === "self" || (rawCt.includes("self") && !rawCt.includes("exam")) || rawCt.includes("home") || rawCt.includes("own")) {
                 centerType = "self";
-              } else if (eStr.includes("yes") || eStr.includes("true") || eStr === "1" || eStr.includes("exam") || eStr.includes("host") || eStr.includes("centre") || eStr.includes("center")) {
+              } else if (rawCt === "exam" || (rawCt.includes("exam") && !rawCt.includes("self")) || rawCt.includes("host")) {
                 centerType = "exam";
+              } else if (rawCt.includes("both") || (rawCt.includes("exam") && rawCt.includes("self"))) {
+                centerType = "both";
+              } else {
+                centerType = "none";
               }
-            } else if (capacity >= 2500) {
-              centerType = "exam";
+            } else {
+              // Fallback to separate legacy self / exam columns if someone uses older format
+              let foundSelf = false;
+              let foundExam = false;
+              if (selfColIdx !== -1 && row[selfColIdx] !== undefined && row[selfColIdx] !== null) {
+                const sStr = String(row[selfColIdx]).trim().toLowerCase();
+                if (sStr === "true" || sStr === "yes" || sStr === "1" || sStr === "y" || sStr.includes("self")) {
+                  foundSelf = true;
+                }
+              }
+              if (examColIdx !== -1 && row[examColIdx] !== undefined && row[examColIdx] !== null) {
+                const eStr = String(row[examColIdx]).trim().toLowerCase();
+                if (eStr === "true" || eStr === "yes" || eStr === "1" || eStr === "y" || eStr.includes("exam")) {
+                  foundExam = true;
+                }
+              }
+              if (foundSelf && foundExam) centerType = "both";
+              else if (foundSelf) centerType = "self";
+              else if (foundExam) centerType = "exam";
+              else centerType = "none";
             }
-            const isExam = (centerType === "exam");
-            const isSelf = (centerType === "self");
+
+            const isExam = (centerType === "exam" || centerType === "both");
+            const isSelf = (centerType === "self" || centerType === "both");
 
             let branches = "General Engineering, Technology";
             if (branchColIndex !== -1 && row[branchColIndex]) {
@@ -3140,11 +3199,11 @@
               name,
               district,
               type: collegeType,
-              centerType: centerType,
+              centerType: centerType, // "self" | "exam" | "none"
               seatingCapacity: capacity,
               branches,
-              isExamCentre: isExam,
-              isSelfCentre: isSelf,
+              isExamCentre: isExam, // Derived internally
+              isSelfCentre: isSelf, // Derived internally
               lat,
               lon
             });
@@ -3158,19 +3217,22 @@
           parsedExcelData = parsed;
           document.getElementById("confirm-upload-btn").disabled = false;
 
-          // Compute type segregation stats
+          // Compute type segregation and center type pin stats
           const counts = { Government: 0, Aided: 0, "Self-Finance": 0, Autonomous: 0 };
+          const centerCounts = { exam: 0, self: 0, none: 0 };
           parsed.forEach(c => {
             if (counts[c.type] !== undefined) counts[c.type]++;
             else counts[c.type] = 1;
+
+            const ct = getCollegeCenterType(c);
+            if (centerCounts[ct] !== undefined) centerCounts[ct]++;
+            else centerCounts.none++;
           });
 
           showUploadStatus(
-            `✓ Successfully verified & segregated ${parsed.length} colleges!\n` +
-            `• 🏛 Government: ${counts["Government"] || 0} (Royal Blue)\n` +
-            `• 🎖 Aided: ${counts["Aided"] || 0} (Emerald Green)\n` +
-            `• 🎓 Self-Finance: ${counts["Self-Finance"] || 0} (Vivid Purple)\n` +
-            `• 👑 Autonomous: ${counts["Autonomous"] || 0} (Amber Gold)\n` +
+            `✓ Successfully verified & classified ${parsed.length} colleges!\n` +
+            `• 📌 Pins: ★ ${centerCounts.exam} Exam Centers | 🏠 ${centerCounts.self} Self Centers | 🏫 ${centerCounts.none} College Centers\n` +
+            `• 🏛 Government: ${counts["Government"] || 0} | 🎖 Aided: ${counts["Aided"] || 0} | 🎓 Self-Finance: ${counts["Self-Finance"] || 0} | 👑 Autonomous: ${counts["Autonomous"] || 0}\n` +
             `• 🪑 Seating Capacity taken from Column 7 (e.g. ${parsed[0]?.seatingCapacity} seats for ${parsed[0]?.name}).\n` +
             `Click 'Import Colleges' below to display them on the map.`,
             false
@@ -3224,10 +3286,13 @@
 
     function downloadSampleExcelTemplate() {
       const sampleData = [
-        ["College Code", "College Name", "District", "Seating Capacity", "Latitude", "Longitude", "Is Exam Centre"],
-        ["4118", "Visvesvaraya National Institute of Technology (VNIT)", "Nagpur", 3500, 21.1255, 79.0520, "Yes"],
-        ["4004", "Government College of Engineering, Nagpur (GCOEN)", "Nagpur", 2200, 21.0963, 79.0880, "Yes"],
-        ["4201", "Bajaj Institute of Technology (BIT)", "Wardha", 1800, 20.7453, 78.6022, "No"]
+        ["College Code", "College Name", "District", "College Type", "Latitude", "Longitude", "Seating Capacity", "CenterType", "Branches"],
+        ["0001", "Dr. Rammanohar Lohia Avadh University", "Ayodhya", "Government", 26.7536, 82.1426, 2500, "exam", "Engineering, Science, Arts"],
+        ["0105", "Rajarshi Dashrath Autonomous Medical College", "Ayodhya", "Autonomous", 26.7410, 82.1850, 2000, "self", "Medicine, Allied Health Sciences"],
+        ["0102", "K.S. Saket Post Graduate College", "Ayodhya", "Aided", 26.7820, 82.1645, 1800, "none", "Arts, Science, Commerce, Law"],
+        ["4118", "Visvesvaraya National Institute of Technology (VNIT)", "Nagpur", "Autonomous", 21.1255, 79.0520, 3500, "exam", "Computer Science, Mechanical, Civil"],
+        ["4144", "Shri Ramdeobaba College of Engineering", "Nagpur", "Autonomous", 21.1783, 79.0618, 2800, "self", "Computer Science, AI, Electronics"],
+        ["4201", "Bajaj Institute of Technology (BIT)", "Wardha", "Self-Finance", 20.7453, 78.6022, 1800, "none", "Mechanical, Civil, Electrical"]
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(sampleData);
@@ -3244,7 +3309,7 @@
       }
 
       const data = [
-        ["College Code", "College Name", "District", "Management Type", "Seating Capacity", "Max Daily Students", "Latitude", "Longitude", "Academic Branches", "Is Exam Centre"]
+        ["College Code", "College Name", "District", "College Type", "Latitude", "Longitude", "Seating Capacity", "CenterType", "Academic Branches"]
       ];
 
       listToExport.forEach(c => {
@@ -3252,13 +3317,12 @@
           c.code,
           c.name,
           c.district,
-          c.collegeType || "GOVERNMENT",
-          c.seatingCapacity,
-          c.studentPopulation || Math.round(c.seatingCapacity * 0.85),
+          c.type || "Government",
           c.lat,
           c.lon,
-          c.branches,
-          c.isExamCentre ? "Yes" : "No"
+          c.seatingCapacity,
+          getCollegeCenterType(c), // "self" | "exam" | "none"
+          c.branches || ""
         ]);
       });
 
