@@ -25,6 +25,7 @@ class CollegeRepository(
 ) {
     val allColleges: Flow<List<CollegeEntity>> = collegeDao.getAllColleges()
     val examCentres: Flow<List<CollegeEntity>> = collegeDao.getExamCentres()
+    val selfCentres: Flow<List<CollegeEntity>> = collegeDao.getSelfCentres()
 
     // Live transit simulation state
     private val _activeTransitFleets = MutableStateFlow<List<TransitBus>>(emptyList())
@@ -71,6 +72,200 @@ class CollegeRepository(
                 )
             )
         }
+
+        // Initialize Default Sample Colleges with Exam & Self Center pins if empty
+        if (collegeDao.getCount() == 0) {
+            seedDefaultColleges(replaceExisting = false)
+        }
+    }
+
+    suspend fun seedDefaultColleges(replaceExisting: Boolean = false) {
+        if (replaceExisting) {
+            collegeDao.clearAll()
+        }
+        val defaults = listOf(
+            CollegeEntity(
+                name = "Delhi University North Campus Govt College",
+                code = "DU-NC01",
+                latitude = 28.6920,
+                longitude = 77.2140,
+                branches = "BSc, MSc, BCA, MCA, BA",
+                seatingCapacity = 3400,
+                studentPopulation = 2500,
+                isExamCentre = true,
+                isSelfCentre = false,
+                address = "North Campus, University Enclave",
+                district = "North Delhi",
+                collegeType = "GOVERNMENT",
+                contactPhone = "+91 11 2766 7011"
+            ),
+            CollegeEntity(
+                name = "St. Stephen's Memorial Aided College",
+                code = "SSMC-02",
+                latitude = 28.6850,
+                longitude = 77.2080,
+                branches = "BA, MA, BSc, MSc, BCom",
+                seatingCapacity = 1900,
+                studentPopulation = 1600,
+                isExamCentre = false,
+                isSelfCentre = true,
+                address = "University Road, Civil Lines",
+                district = "North Delhi",
+                collegeType = "AIDED",
+                contactPhone = "+91 11 2766 7200"
+            ),
+            CollegeEntity(
+                name = "Central Delhi Autonomous Institute of Law & Commerce",
+                code = "CDAI-03",
+                latitude = 28.6310,
+                longitude = 77.2190,
+                branches = "LLB, BALLB, BCom, MCom, BBA",
+                seatingCapacity = 2900,
+                studentPopulation = 2200,
+                isExamCentre = true,
+                isSelfCentre = true,
+                address = "Barakhamba Road, Connaught Place",
+                district = "Central Delhi",
+                collegeType = "Autonomous",
+                contactPhone = "+91 11 2331 4500"
+            ),
+            CollegeEntity(
+                name = "South Delhi Govt Science & Technology Institute",
+                code = "SDST-04",
+                latitude = 28.5480,
+                longitude = 77.1950,
+                branches = "BSc, MSc, BCA, MCA",
+                seatingCapacity = 3100,
+                studentPopulation = 2400,
+                isExamCentre = true,
+                isSelfCentre = false,
+                address = "Hauz Khas, Outer Ring Road",
+                district = "South Delhi",
+                collegeType = "GOVERNMENT",
+                contactPhone = "+91 11 2659 1000"
+            ),
+            CollegeEntity(
+                name = "Apex Self-Finance Degree College",
+                code = "ASFC-05",
+                latitude = 28.6300,
+                longitude = 77.0850,
+                branches = "BCA, MCA, BCom, MCom, BEd",
+                seatingCapacity = 1700,
+                studentPopulation = 1500,
+                isExamCentre = false,
+                isSelfCentre = true,
+                address = "Janakpuri Institutional Area",
+                district = "West Delhi",
+                collegeType = "SELF FINANCE",
+                contactPhone = "+91 11 2555 3300"
+            ),
+            CollegeEntity(
+                name = "Rajdhani Autonomous College of Humanities",
+                code = "RACH-06",
+                latitude = 28.6520,
+                longitude = 77.1250,
+                branches = "BA, MA, BCom, MEd",
+                seatingCapacity = 2200,
+                studentPopulation = 1800,
+                isExamCentre = false,
+                isSelfCentre = true,
+                address = "Raja Garden, Ring Road",
+                district = "West Delhi",
+                collegeType = "Autonomous",
+                contactPhone = "+91 11 2593 1122"
+            ),
+            CollegeEntity(
+                name = "Vivekananda Aided Institute of Arts & Science",
+                code = "VIAS-07",
+                latitude = 28.5360,
+                longitude = 77.2580,
+                branches = "BA, BSc, BCom, MA",
+                seatingCapacity = 2600,
+                studentPopulation = 1900,
+                isExamCentre = true,
+                isSelfCentre = false,
+                address = "Kalkaji, Nehru Place Extension",
+                district = "South East Delhi",
+                collegeType = "AIDED",
+                contactPhone = "+91 11 2643 8900"
+            ),
+            CollegeEntity(
+                name = "Pragyan Self-Finance Technical Campus",
+                code = "PSTC-08",
+                latitude = 28.7050,
+                longitude = 77.1050,
+                branches = "BCom, BEd, MEd, BA",
+                seatingCapacity = 1300,
+                studentPopulation = 1100,
+                isExamCentre = false,
+                isSelfCentre = false,
+                address = "Rohini Sector 14, Institutional Area",
+                district = "North West Delhi",
+                collegeType = "SELF FINANCE",
+                contactPhone = "+91 11 2755 4400"
+            ),
+            CollegeEntity(
+                name = "East Delhi Govt Girls Degree College",
+                code = "EDGC-09",
+                latitude = 28.6250,
+                longitude = 77.2750,
+                branches = "BA, MA, BSc, MSc, BEd",
+                seatingCapacity = 1800,
+                studentPopulation = 1400,
+                isExamCentre = false,
+                isSelfCentre = true,
+                address = "Vivek Vihar, Shahdara",
+                district = "East Delhi",
+                collegeType = "GOVERNMENT",
+                contactPhone = "+91 11 2215 6700"
+            ),
+            CollegeEntity(
+                name = "Metro Aided Institute of Commerce & Management",
+                code = "MAIC-10",
+                latitude = 28.6680,
+                longitude = 77.2900,
+                branches = "BCom, MCom, BA, MA",
+                seatingCapacity = 1200,
+                studentPopulation = 950,
+                isExamCentre = false,
+                isSelfCentre = false,
+                address = "Dilshad Garden, GT Road",
+                district = "North East Delhi",
+                collegeType = "AIDED",
+                contactPhone = "+91 11 2228 9011"
+            ),
+            CollegeEntity(
+                name = "Capital Autonomous Law & Policy Academy",
+                code = "CALP-11",
+                latitude = 28.5850,
+                longitude = 77.2350,
+                branches = "LLB, BALLB, BBA, BCom",
+                seatingCapacity = 2700,
+                studentPopulation = 2000,
+                isExamCentre = true,
+                isSelfCentre = false,
+                address = "Lodhi Road, Institutional Area",
+                district = "South Delhi",
+                collegeType = "Autonomous",
+                contactPhone = "+91 11 2461 5500"
+            ),
+            CollegeEntity(
+                name = "Global Self-Finance Business Academy",
+                code = "GSBA-12",
+                latitude = 28.5720,
+                longitude = 77.0680,
+                branches = "BCA, MCA, BCom, MCom",
+                seatingCapacity = 2400,
+                studentPopulation = 1750,
+                isExamCentre = true,
+                isSelfCentre = true,
+                address = "Dwarka Sector 9, Institutional Area",
+                district = "South West Delhi",
+                collegeType = "SELF FINANCE",
+                contactPhone = "+91 11 2808 2211"
+            )
+        )
+        collegeDao.insertAll(defaults)
     }
 
     suspend fun authenticateUser(username: String, passwordAttempt: String): UserCredential? {

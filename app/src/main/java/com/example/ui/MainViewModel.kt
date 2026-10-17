@@ -62,25 +62,42 @@ class MainViewModel(
     private val _examCentresOnly = MutableStateFlow(false)
     val examCentresOnly: StateFlow<Boolean> = _examCentresOnly.asStateFlow()
 
+    private val _selfCentresOnly = MutableStateFlow(false)
+    val selfCentresOnly: StateFlow<Boolean> = _selfCentresOnly.asStateFlow()
+
+    private data class FilterCriteria(
+        val query: String,
+        val branch: String,
+        val colType: String,
+        val examOnly: Boolean,
+        val selfOnly: Boolean
+    )
+
     // Filtered Colleges
     val filteredColleges: StateFlow<List<CollegeEntity>> = combine(
         allColleges,
-        _searchQuery,
-        _selectedBranch,
-        _selectedCollegeType,
-        _examCentresOnly
-    ) { colleges, query, branch, colType, examOnly ->
+        combine(
+            _searchQuery,
+            _selectedBranch,
+            _selectedCollegeType,
+            _examCentresOnly,
+            _selfCentresOnly
+        ) { query, branch, colType, examOnly, selfOnly ->
+            FilterCriteria(query, branch, colType, examOnly, selfOnly)
+        }
+    ) { colleges, filter ->
         colleges.filter { col ->
-            val matchesQuery = if (query.isBlank()) true else {
-                col.name.contains(query, ignoreCase = true) ||
-                col.code.contains(query, ignoreCase = true) ||
-                col.district.contains(query, ignoreCase = true) ||
-                col.address.contains(query, ignoreCase = true)
+            val matchesQuery = if (filter.query.isBlank()) true else {
+                col.name.contains(filter.query, ignoreCase = true) ||
+                col.code.contains(filter.query, ignoreCase = true) ||
+                col.district.contains(filter.query, ignoreCase = true) ||
+                col.address.contains(filter.query, ignoreCase = true)
             }
-            val matchesBranch = col.matchesBranch(branch)
-            val matchesType = col.matchesType(colType)
-            val matchesExam = if (examOnly) col.isExamCentre else true
-            matchesQuery && matchesBranch && matchesType && matchesExam
+            val matchesBranch = col.matchesBranch(filter.branch)
+            val matchesType = col.matchesType(filter.colType)
+            val matchesExam = if (filter.examOnly) col.isExamCentre else true
+            val matchesSelf = if (filter.selfOnly) col.isSelfCentre else true
+            matchesQuery && matchesBranch && matchesType && matchesExam && matchesSelf
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -208,6 +225,21 @@ class MainViewModel(
 
     fun toggleExamCentresOnly(enabled: Boolean) {
         _examCentresOnly.value = enabled
+    }
+
+    fun toggleSelfCentresOnly(enabled: Boolean) {
+        _selfCentresOnly.value = enabled
+    }
+
+    fun restoreDefaultColleges() {
+        viewModelScope.launch {
+            _uploadLoading.value = true
+            _uploadStatus.value = "Restoring default university colleges with Exam & Self Center pins..."
+            _uploadIsError.value = false
+            repository.seedDefaultColleges(replaceExisting = true)
+            _uploadLoading.value = false
+            _uploadStatus.value = "Successfully restored 12 colleges with Exam Center and Self Center pins!"
+        }
     }
 
     // Map selection

@@ -62,6 +62,7 @@ fun CollegeEditDialog(
     var seatingCapacity by remember { mutableStateOf(collegeToEdit?.seatingCapacity?.toString() ?: "1800") }
     var studentPopulation by remember { mutableStateOf(collegeToEdit?.studentPopulation?.toString() ?: "1200") }
     var isExamCentre by remember { mutableStateOf(collegeToEdit?.isExamCentre ?: false) }
+    var isSelfCentre by remember { mutableStateOf(collegeToEdit?.isSelfCentre ?: false) }
     var collegeType by remember { mutableStateOf(collegeToEdit?.collegeType ?: "GOVERNMENT") }
     var address by remember { mutableStateOf(collegeToEdit?.address ?: "") }
     var district by remember { mutableStateOf(collegeToEdit?.district ?: "University Region") }
@@ -266,7 +267,25 @@ fun CollegeEditDialog(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Designated University Exam Centre",
+                        text = "Designated Exam Centre (★ Exam Pin)",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Is Self Centre Checkbox
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isSelfCentre,
+                        onCheckedChange = { isSelfCentre = it },
+                        modifier = Modifier.testTag("edit_college_is_self_centre")
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Designated Self Centre (🎯 Self Pin)",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -329,6 +348,7 @@ fun CollegeEditDialog(
                                 seatingCapacity = capVal,
                                 studentPopulation = stdVal,
                                 isExamCentre = isExamCentre,
+                                isSelfCentre = isSelfCentre,
                                 address = address.trim(),
                                 district = district.trim(),
                                 collegeType = collegeType,

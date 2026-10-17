@@ -18,6 +18,9 @@ interface CollegeDao {
     @Query("SELECT * FROM colleges WHERE isExamCentre = 1 ORDER BY seatingCapacity DESC")
     fun getExamCentres(): Flow<List<CollegeEntity>>
 
+    @Query("SELECT * FROM colleges WHERE isSelfCentre = 1 ORDER BY seatingCapacity DESC")
+    fun getSelfCentres(): Flow<List<CollegeEntity>>
+
     @Query("SELECT * FROM colleges WHERE id = :id LIMIT 1")
     suspend fun getCollegeById(id: Long): CollegeEntity?
 

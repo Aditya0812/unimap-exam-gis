@@ -62,6 +62,7 @@ fun SpreadsheetUploadDialog(
     statusMessage: String?,
     isError: Boolean,
     onUploadUri: (Uri, Boolean) -> Unit,
+    onRestoreDefaults: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     var replaceAll by remember { mutableStateOf(true) }
@@ -261,6 +262,24 @@ fun SpreadsheetUploadDialog(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
+                    }
+                }
+
+                if (onRestoreDefaults != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    TextButton(
+                        onClick = onRestoreDefaults,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("restore_default_colleges_button")
+                    ) {
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Reset to Sample Colleges (with Exam & Self Pins)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
                 }
             }

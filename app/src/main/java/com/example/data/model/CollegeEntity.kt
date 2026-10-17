@@ -50,6 +50,13 @@ data class CollegeEntity(
     val contactEmail: String = "",
     val district: String = "",
     val collegeType: String = "GOVERNMENT", // GOVERNMENT, AIDED, SELF FINANCE, Autonomous
+    val isSelfCentre: Boolean = false,
+    val centerType: String = when {
+        isExamCentre && isSelfCentre -> "both"
+        isExamCentre -> "exam"
+        isSelfCentre -> "self"
+        else -> "none"
+    },
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     /** Alias matching user specification: "Maximum student count per day" */

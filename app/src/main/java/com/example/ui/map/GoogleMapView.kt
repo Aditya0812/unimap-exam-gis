@@ -199,9 +199,14 @@ private fun buildGoogleMapHtml(): String {
                 font-weight: 600;
             }
             .badge-exam {
-                background: #fef08a;
-                color: #854d0e;
-                border: 1px solid #facc15;
+                background: #fee2e2;
+                color: #b91c1c;
+                border: 1px solid #f87171;
+            }
+            .badge-self {
+                background: #ccfbf1;
+                color: #0f766e;
+                border: 1px solid #2dd4bf;
             }
             .badge-type {
                 background: #e2e8f0;
@@ -299,6 +304,7 @@ private fun buildGoogleMapHtml(): String {
 
             function createCollegeIcon(col, isSelected) {
                 var isExam = col.isExamCentre;
+                var isSelf = col.isSelfCentre;
                 var t = (col.type || 'Government').toUpperCase();
                 var color = '#1D4ED8';
                 var symbol = '🏛';
@@ -329,13 +335,26 @@ private fun buildGoogleMapHtml(): String {
                 }
 
                 var size = isSelected ? 34 : 28;
-                var examBadge = isExam ? '<span style="position: absolute; top: -5px; right: -5px; background: #DC2626; color: #FFF; width: 14px; height: 14px; border-radius: 50%; font-size: 8px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #FFF; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10;">★</span>' : '';
 
-                var html = '<div style="position: relative; width: ' + size + 'px; height: ' + size + 'px;">' +
+                // Center pins mounted ON TOP of the college type icon (NO college center pin)
+                var topPinsHtml = '';
+                if (isExam || isSelf) {
+                    topPinsHtml += '<div style="position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 3px; z-index: 30; pointer-events: none; white-space: nowrap;">';
+                    if (isExam) {
+                        topPinsHtml += '<div style="background: linear-gradient(135deg, #EF4444, #B91C1C); color: #FFFFFF; font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 5px; border: 1.5px solid #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 2px;"><span style="color: #FDE047;">★</span> EXAM</div>';
+                    }
+                    if (isSelf) {
+                        topPinsHtml += '<div style="background: linear-gradient(135deg, #0D9488, #0F766E); color: #FFFFFF; font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 5px; border: 1.5px solid #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 2px;">🎯 SELF</div>';
+                    }
+                    topPinsHtml += '</div>';
+                    topPinsHtml += '<div style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid ' + (isExam ? '#DC2626' : '#0D9488') + '; margin-bottom: 0px; z-index: 29;"></div>';
+                }
+
+                var html = '<div style="position: relative; width: ' + size + 'px; height: ' + size + 'px; display: flex; align-items: center; justify-content: center;">' +
+                    topPinsHtml +
                     '<div style="background-color: ' + color + '; width: ' + size + 'px; height: ' + size + 'px; ' + shapeStyle + ' display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.35); cursor: pointer;">' +
                     '<span style="' + (isDiamond ? 'transform: rotate(-45deg); ' : '') + 'color: #ffffff; font-size: ' + (size * 0.46) + 'px; line-height: 1;">' + symbol + '</span>' +
                     '</div>' +
-                    examBadge +
                     '</div>';
 
                 return L.divIcon({
@@ -491,6 +510,7 @@ private fun buildGoogleMapHtml(): String {
                             '<div class="badge-row">' +
                             '<span class="badge" style="background: ' + getTypeColor(col.type) + '; color: #ffffff; font-weight: bold; border-radius: 4px; padding: 2px 6px;">' + (col.type || 'Government') + '</span>' +
                             (col.isExamCentre ? '<span class="badge badge-exam">★ Exam Centre</span>' : '') +
+                            (col.isSelfCentre ? '<span class="badge badge-self">🎯 Self Centre</span>' : '') +
                             '</div>' +
                             '<div style="font-size: 11px; color: #475569; margin-bottom: 6px;">Seating Capacity: <b>' + col.capacity + '</b></div>' +
                             '<button class="select-btn" onclick="selectCollegeFromJs(' + col.id + ')">Select College</button>';
@@ -567,6 +587,7 @@ private fun buildMapPayload(
         obj.put("lat", col.latitude)
         obj.put("lon", col.longitude)
         obj.put("isExamCentre", col.isExamCentre)
+        obj.put("isSelfCentre", col.isSelfCentre)
         obj.put("type", col.collegeType)
         obj.put("capacity", col.seatingCapacity)
         colsArr.put(obj)

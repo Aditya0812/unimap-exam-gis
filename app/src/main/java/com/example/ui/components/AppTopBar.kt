@@ -63,6 +63,8 @@ fun AppTopBar(
     onSelectCollegeType: (String) -> Unit = {},
     examCentresOnly: Boolean,
     onToggleExamCentresOnly: (Boolean) -> Unit,
+    selfCentresOnly: Boolean = false,
+    onToggleSelfCentresOnly: (Boolean) -> Unit = {},
     onOpenUploadDialog: () -> Unit,
     onOpenKmzDialog: () -> Unit = {},
     hasKmzLoaded: Boolean = false,
@@ -277,19 +279,30 @@ fun AppTopBar(
                     FilterChip(
                         selected = examCentresOnly,
                         onClick = { onToggleExamCentresOnly(!examCentresOnly) },
-                        label = { Text("Exam Centres Only") },
+                        label = { Text("Exam Centres") },
                         leadingIcon = {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(ExamGold, CircleShape)
-                            )
+                            Text("★", fontSize = 11.sp, color = ExamGold)
                         },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = ExamGold.copy(alpha = 0.2f),
                             selectedLabelColor = ExamGold
                         ),
                         modifier = Modifier.testTag("filter_exam_centres_only")
+                    )
+
+                    // Self Centres Only filter
+                    FilterChip(
+                        selected = selfCentresOnly,
+                        onClick = { onToggleSelfCentresOnly(!selfCentresOnly) },
+                        label = { Text("Self Centres") },
+                        leadingIcon = {
+                            Text("🎯", fontSize = 10.sp)
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF0D9488).copy(alpha = 0.2f),
+                            selectedLabelColor = Color(0xFF0D9488)
+                        ),
+                        modifier = Modifier.testTag("filter_self_centres_only")
                     )
 
                     // Branch Chips

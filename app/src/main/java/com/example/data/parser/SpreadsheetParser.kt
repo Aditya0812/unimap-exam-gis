@@ -375,6 +375,7 @@ object SpreadsheetParser {
         var capCol = -1
         var studentCol = -1
         var examCol = -1
+        var selfCol = -1
         var addressCol = -1
 
         if (headerRowIdx != -1) {
@@ -393,6 +394,8 @@ object SpreadsheetParser {
                 it.contains("per day") || it.contains("student") || it.contains("population")
             }
             examCol = header.indexOfFirst { it.contains("exam") }
+            selfCol = header.indexOfFirst { it.contains("self") && (it.contains("cent") || it.contains("ctr") || it.contains("venue") || it.contains("status")) }
+            if (selfCol == -1) selfCol = header.indexOfFirst { it.contains("self") && !it.contains("finance") }
             addressCol = header.indexOfFirst { it.contains("address") }
         }
 
@@ -454,6 +457,10 @@ object SpreadsheetParser {
                 val e = r[examCol].lowercase()
                 e.contains("yes") || e.contains("true") || e == "1" || cap >= 2000
             } else cap >= 2000
+            val isSelf = if (selfCol != -1 && selfCol in r.indices) {
+                val s = r[selfCol].lowercase()
+                s.contains("yes") || s.contains("true") || s == "1" || s.contains("self")
+            } else false
             val addr = if (addressCol != -1 && addressCol in r.indices && r[addressCol].isNotBlank()) r[addressCol].trim() else "$district, Affiliated Campus"
 
             list.add(
@@ -467,6 +474,7 @@ object SpreadsheetParser {
                     seatingCapacity = cap,
                     studentPopulation = std,
                     isExamCentre = isExam,
+                    isSelfCentre = isSelf,
                     address = addr,
                     district = district,
                     collegeType = colType

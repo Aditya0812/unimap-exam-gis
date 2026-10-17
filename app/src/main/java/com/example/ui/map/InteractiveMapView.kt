@@ -759,6 +759,16 @@ fun InteractiveMapView(
                     LegendItem(color = Color(0xFF9333EA), label = "SELF FINANCE (Purple)", glyph = "SF")
                     LegendItem(color = Color(0xFFD97706), label = "Autonomous (Gold)", glyph = "AU")
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "CENTER PINS (ON TOP OF ICON)",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LegendItem(color = Color(0xFFDC2626), label = "★ Exam Center Pin", glyph = "★")
+                    LegendItem(color = Color(0xFF0D9488), label = "🎯 Self Center Pin", glyph = "🎯")
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
@@ -1255,10 +1265,12 @@ private fun DrawScope.drawCollegeMarker(
     val managementTypeColor = Color(college.managementType.colorHex).copy(alpha = alpha)
 
     // Outer Pin Drop Body
+    val hasExam = college.isExamCentre
+    val hasSelf = college.isSelfCentre
     val pinRadius = if (isSelected || isHovered) {
-        if (college.isExamCentre) 16f else 13f
+        if (hasExam || hasSelf) 16f else 13f
     } else {
-        if (college.isExamCentre) 13f else 10.5f
+        if (hasExam || hasSelf) 13f else 10.5f
     }
     // Outer Pin Drop Body with distinct geometric shape per College Type
     when (college.managementType) {
@@ -1302,7 +1314,7 @@ private fun DrawScope.drawCollegeMarker(
     }
 
     // Inner White Pin Core
-    val innerRadius = if (college.isExamCentre) 6.5f else 5f
+    val innerRadius = if (hasExam || hasSelf) 6.5f else 5f
     drawCircle(
         color = Color.White.copy(alpha = alpha),
         radius = innerRadius,
@@ -1330,15 +1342,16 @@ private fun DrawScope.drawCollegeMarker(
     }
     drawContext.canvas.nativeCanvas.drawText(glyphText, point.x, point.y + 4f, glyphPaint)
 
-    // Crown/Star on top if Exam Centre
-    if (college.isExamCentre) {
-        val starPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.rgb(245, 158, 11)
-            textSize = 14f
-            isAntiAlias = true
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
-        drawContext.canvas.nativeCanvas.drawText("★", point.x, point.y - pinRadius - 2f, starPaint)
+    // Draw Center Pins (Exam Center Pin and Self Center Pin) ON TOP of the College Type Icon
+    if (hasExam || hasSelf) {
+        drawCenterPinsOnTop(
+            point = point,
+            pinRadius = pinRadius,
+            hasExam = hasExam,
+            hasSelf = hasSelf,
+            alpha = alpha,
+            isDark = isDark
+        )
     }
 
     if (!isFilteredIn) return
@@ -1529,6 +1542,189 @@ private fun DrawScope.drawCollegeMarker(
             cardTop + cardPadY + 50f,
             coordsPaint
         )
+    }
+}
+
+/**
+ * Draws the Exam Center and Self Center pins mounted directly ON TOP of the College Type Icon.
+ * Does NOT draw any "college center" pin, strictly providing Exam Center and Self Center pins.
+ */
+private fun DrawScope.drawCenterPinsOnTop(
+    point: Offset,
+    pinRadius: Float,
+    hasExam: Boolean,
+    hasSelf: Boolean,
+    alpha: Float,
+    isDark: Boolean
+) {
+    val topAnchorY = point.y - pinRadius
+
+    if (hasExam && hasSelf) {
+        // Both pins displayed side-by-side on top of the college icon:
+        // Left: [★ EXAM], Right: [🎯 SELF]
+        val badgeHeight = 16f
+        val badgeYCenter = topAnchorY - 12f
+        val halfHeight = badgeHeight / 2f
+
+        // Downward needle pointing to the college type icon top
+        val needlePath = android.graphics.Path().apply {
+            moveTo(point.x - 5f, topAnchorY - 4f)
+            lineTo(point.x + 5f, topAnchorY - 4f)
+            lineTo(point.x, topAnchorY)
+            close()
+        }
+        val needlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 220, 38, 38)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawPath(needlePath, needlePaint)
+
+        // Exam badge on left (Crimson with yellow star and white text)
+        val examText = "★ EXAM"
+        val examPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            textSize = 10f
+            isFakeBoldText = true
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val examWidth = examPaint.measureText(examText) + 8f
+        val examLeft = point.x - examWidth - 2f
+        val examRight = point.x - 2f
+        val examRect = android.graphics.RectF(examLeft, badgeYCenter - halfHeight, examRight, badgeYCenter + halfHeight)
+
+        val examBgPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 220, 38, 38)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val borderPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 1.4f
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawRoundRect(examRect, 4f, 4f, examBgPaint)
+        drawContext.canvas.nativeCanvas.drawRoundRect(examRect, 4f, 4f, borderPaint)
+        drawContext.canvas.nativeCanvas.drawText(examText, (examLeft + examRight) / 2f, badgeYCenter + 3.5f, examPaint)
+
+        // Self badge on right (Deep Teal with target icon and white text)
+        val selfText = "🎯 SELF"
+        val selfPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            textSize = 10f
+            isFakeBoldText = true
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val selfWidth = selfPaint.measureText(selfText) + 8f
+        val selfLeft = point.x + 2f
+        val selfRight = point.x + selfWidth + 2f
+        val selfRect = android.graphics.RectF(selfLeft, badgeYCenter - halfHeight, selfRight, badgeYCenter + halfHeight)
+
+        val selfBgPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 13, 148, 136)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawRoundRect(selfRect, 4f, 4f, selfBgPaint)
+        drawContext.canvas.nativeCanvas.drawRoundRect(selfRect, 4f, 4f, borderPaint)
+        drawContext.canvas.nativeCanvas.drawText(selfText, (selfLeft + selfRight) / 2f, badgeYCenter + 3.5f, selfPaint)
+
+    } else if (hasExam) {
+        // Exam Center Pin Only: [★ EXAM] mounted on top of the college icon
+        val badgeHeight = 17f
+        val badgeYCenter = topAnchorY - 13f
+        val halfHeight = badgeHeight / 2f
+
+        val needlePath = android.graphics.Path().apply {
+            moveTo(point.x - 4f, topAnchorY - 4f)
+            lineTo(point.x + 4f, topAnchorY - 4f)
+            lineTo(point.x, topAnchorY)
+            close()
+        }
+        val needlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 220, 38, 38)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawPath(needlePath, needlePaint)
+
+        val text = "★ EXAM"
+        val textPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            textSize = 10.5f
+            isFakeBoldText = true
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val textWidth = textPaint.measureText(text) + 10f
+        val left = point.x - (textWidth / 2f)
+        val right = point.x + (textWidth / 2f)
+        val rect = android.graphics.RectF(left, badgeYCenter - halfHeight, right, badgeYCenter + halfHeight)
+
+        val bgPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 220, 38, 38)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val borderPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 1.4f
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawRoundRect(rect, 5f, 5f, bgPaint)
+        drawContext.canvas.nativeCanvas.drawRoundRect(rect, 5f, 5f, borderPaint)
+        drawContext.canvas.nativeCanvas.drawText(text, point.x, badgeYCenter + 3.8f, textPaint)
+
+    } else if (hasSelf) {
+        // Self Center Pin Only: [🎯 SELF] mounted on top of the college icon
+        val badgeHeight = 17f
+        val badgeYCenter = topAnchorY - 13f
+        val halfHeight = badgeHeight / 2f
+
+        val needlePath = android.graphics.Path().apply {
+            moveTo(point.x - 4f, topAnchorY - 4f)
+            lineTo(point.x + 4f, topAnchorY - 4f)
+            lineTo(point.x, topAnchorY)
+            close()
+        }
+        val needlePaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 13, 148, 136)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawPath(needlePath, needlePaint)
+
+        val text = "🎯 SELF"
+        val textPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            textSize = 10.5f
+            isFakeBoldText = true
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val textWidth = textPaint.measureText(text) + 10f
+        val left = point.x - (textWidth / 2f)
+        val right = point.x + (textWidth / 2f)
+        val rect = android.graphics.RectF(left, badgeYCenter - halfHeight, right, badgeYCenter + halfHeight)
+
+        val bgPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 13, 148, 136)
+            style = android.graphics.Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val borderPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 255, 255)
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = 1.4f
+            isAntiAlias = true
+        }
+        drawContext.canvas.nativeCanvas.drawRoundRect(rect, 5f, 5f, bgPaint)
+        drawContext.canvas.nativeCanvas.drawRoundRect(rect, 5f, 5f, borderPaint)
+        drawContext.canvas.nativeCanvas.drawText(text, point.x, badgeYCenter + 3.8f, textPaint)
     }
 }
 

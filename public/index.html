@@ -49,10 +49,57 @@
       width: 100%;
       z-index: 10;
     }
-    .custom-marker {
+    .custom-marker, .leaflet-marker-icon.custom-marker {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: visible !important;
+    }
+    .marker-pin-wrapper {
+      position: relative;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: visible;
+    }
+    /* Prominent Center Badges positioned on top of the College Type Icon */
+    .center-status-badge {
+      position: absolute;
+      top: -9px;
+      right: -7px;
+      width: 20px;
+      height: 20px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      color: #ffffff;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+      z-index: 100;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .center-status-badge:hover {
+      transform: scale(1.3);
+      z-index: 110;
+    }
+    .center-status-badge.badge-exam {
+      background: linear-gradient(135deg, #EF4444, #B91C1C);
+      box-shadow: 0 0 0 1.5px #EF4444, 0 3px 6px rgba(185, 28, 28, 0.6);
+    }
+    .center-status-badge.badge-self {
+      background: linear-gradient(135deg, #0D9488, #0F766E);
+      box-shadow: 0 0 0 1.5px #14B8A6, 0 3px 6px rgba(15, 118, 110, 0.6);
+    }
+    .center-status-badge.badge-college {
+      background: linear-gradient(135deg, #64748B, #334155);
+      box-shadow: 0 0 0 1.5px #64748B, 0 2px 5px rgba(51, 65, 85, 0.5);
     }
     .leaflet-popup-content-wrapper {
       border-radius: 12px;
@@ -72,6 +119,51 @@
     }
     ::-webkit-scrollbar-thumb:hover {
       background: #94A3B8;
+    }
+    /* Dynamic College Name Labels on Zoom >= 12 without clunky overlap */
+    .college-name-pill {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(3px);
+      white-space: nowrap;
+      max-width: 135px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(6px);
+      color: #0f172a;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      border-radius: 5px;
+      padding: 1.5px 5.5px;
+      font-size: 9.5px;
+      font-weight: 700;
+      box-shadow: 0 2px 5px -1px rgba(0, 0, 0, 0.18), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.2;
+      z-index: 500;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .zoom-labels-on .college-name-pill {
+      display: block;
+      opacity: 1;
+    }
+    .zoom-labels-expanded .college-name-pill {
+      max-width: 220px;
+      font-size: 10.5px;
+      padding: 2px 7px;
+    }
+    /* Pulsing Feeder Route Ray */
+    .feeder-route-ray {
+      stroke-dasharray: 6, 8;
+      animation: dashMove 20s linear infinite;
+    }
+    @keyframes dashMove {
+      from { stroke-dashoffset: 1000; }
+      to { stroke-dashoffset: 0; }
     }
   </style>
 </head>
@@ -124,15 +216,18 @@
         <option value="Autonomous">👑 Autonomous</option>
       </select>
 
-      <!-- Quick Exam Centre Filter Toggle -->
-      <button 
-        id="exam-filter-btn" 
-        class="px-2.5 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center space-x-1.5 whitespace-nowrap transition"
-        title="Toggle Exam Centers Only"
+      <!-- Center Classification Filter Dropdown (Exam / Self / Regular) -->
+      <select 
+        id="center-type-filter" 
+        onchange="onCenterFilterChanged(this.value)"
+        class="px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-700 outline-none hover:bg-slate-50 focus:border-blue-500 transition cursor-pointer shadow-xs"
+        title="Filter by Examination Center Role"
       >
-        <i class="fa-solid fa-star text-amber-500"></i>
-        <span class="hidden md:inline">Exam Centers Only</span>
-      </button>
+        <option value="ALL">All Center Statuses</option>
+        <option value="EXAM">★ Exam Centers (Host)</option>
+        <option value="SELF">🏠 Self Centers (Home)</option>
+        <option value="REGULAR">🏫 College Centers (Affiliated)</option>
+      </select>
     </div>
 
     <!-- Primary Action Buttons -->
@@ -160,9 +255,31 @@
         id="proximity-toggle-btn"
         onclick="toggleProximityPanel()" 
         class="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center space-x-1.5 transition"
+        title="Analyze surrounding colleges within radius"
       >
         <i class="fa-solid fa-circle-dot"></i>
         <span class="hidden sm:inline">Radius Tool</span>
+      </button>
+
+      <!-- Exam Centers Feeder Matrix Button -->
+      <button 
+        onclick="openExamMatrixModal()" 
+        class="px-2.5 py-1.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg shadow-xs flex items-center space-x-1.5 transition"
+        title="View all Exam Centers and their feeder colleges under selected radius"
+      >
+        <i class="fa-solid fa-graduation-cap text-red-600"></i>
+        <span class="hidden md:inline font-bold">Exam Matrix</span>
+      </button>
+
+      <!-- Dynamic College Names Display Toggle -->
+      <button 
+        id="toggle-labels-btn"
+        onclick="toggleNameLabelsMode()" 
+        class="px-2.5 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg shadow-xs flex items-center space-x-1 transition"
+        title="College Names display mode (Auto on zoom / Always On / Off)"
+      >
+        <i class="fa-solid fa-tag text-blue-600"></i>
+        <span class="hidden lg:inline" id="toggle-labels-label">Names: Auto</span>
       </button>
 
       <!-- Transit ETA Planner -->
@@ -376,15 +493,41 @@
         </button>
       </div>
 
-      <!-- Exam Centre Indicator & Reset -->
-      <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-        <div class="flex items-center space-x-1.5 text-slate-600 font-medium">
-          <span class="w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[9px] font-bold shadow-xs">★</span>
-          <span>Exam Centre</span>
+      <!-- Center Role Indicators & Reset (Badges on top of College Pins) -->
+      <div class="mt-2.5 pt-2 border-t border-slate-100 flex flex-col space-y-1.5 text-[10px]">
+        <div class="text-[9px] uppercase tracking-wider font-bold text-slate-500 mb-0.5">Center Badges (On Top of Pin)</div>
+        <div class="grid grid-cols-3 gap-1">
+          <button 
+            onclick="setCenterFilter('EXAM')" 
+            class="flex items-center space-x-1 p-1 rounded-md bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-700 font-semibold transition border border-slate-200"
+            title="Show Exam Centers (Hosts external colleges)"
+          >
+            <span class="center-status-badge badge-exam" style="position: static; width: 15px; height: 15px; font-size: 8px; flex-shrink: 0;">★</span>
+            <span class="text-[9px] truncate">Exam Ctr</span>
+          </button>
+          <button 
+            onclick="setCenterFilter('SELF')" 
+            class="flex items-center space-x-1 p-1 rounded-md bg-slate-50 hover:bg-teal-50 text-slate-700 hover:text-teal-700 font-semibold transition border border-slate-200"
+            title="Show Self Centers (Exams in own campus)"
+          >
+            <span class="center-status-badge badge-self" style="position: static; width: 15px; height: 15px; font-size: 8px; flex-shrink: 0;"><i class="fa-solid fa-house" style="font-size: 7px;"></i></span>
+            <span class="text-[9px] truncate">Self Ctr</span>
+          </button>
+          <button 
+            onclick="setCenterFilter('REGULAR')" 
+            class="flex items-center space-x-1 p-1 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-semibold transition border border-slate-200"
+            title="Show Regular College Centers"
+          >
+            <span class="center-status-badge badge-college" style="position: static; width: 15px; height: 15px; font-size: 8px; flex-shrink: 0;"><i class="fa-solid fa-school" style="font-size: 7px;"></i></span>
+            <span class="text-[9px] truncate">College Ctr</span>
+          </button>
         </div>
-        <button onclick="filterByType('ALL')" class="text-blue-600 hover:text-blue-800 font-bold hover:underline">
-          Reset Filter
-        </button>
+        <div class="flex items-center justify-between pt-0.5">
+          <span class="text-[9px] text-slate-400">Click to filter by center role</span>
+          <button onclick="resetAllFilters()" class="text-blue-600 hover:text-blue-800 font-bold hover:underline text-[10px]">
+            Reset All
+          </button>
+        </div>
       </div>
     </div>
 
@@ -473,9 +616,37 @@
           </div>
         </div>
 
+        <!-- Dedicated Exam Center Feeder Allocation Banner -->
+        <div id="exam-allocation-hub-card" class="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 rounded-xl p-2.5 hidden">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-red-900 text-[11px] flex items-center">
+              <i class="fa-solid fa-graduation-cap mr-1 text-red-600"></i> Exam Center Allocation Hub
+            </span>
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white shadow-xs">★ Host Center</span>
+          </div>
+          <div class="text-[10px] text-slate-700">
+            Center Seating Capacity: <strong id="exam-hub-capacity" class="text-blue-800">0</strong> seats
+          </div>
+          <div class="mt-1 flex items-center justify-between text-[10px] border-t border-red-200/60 pt-1">
+            <span class="text-slate-600">Feeder Colleges Coming: <strong id="exam-hub-coming-count" class="text-red-700">0</strong></span>
+            <span class="text-slate-600">Total Arriving Students: <strong id="exam-hub-student-sum" class="text-indigo-700">0</strong></span>
+          </div>
+          <div id="exam-hub-health-gauge" class="mt-1 text-[10px] font-semibold"></div>
+        </div>
+
+        <!-- Filter tabs for radius list: Coming for Exam vs All Nearby -->
+        <div id="radius-list-tabs" class="flex items-center space-x-1 pt-1 hidden">
+          <button id="tab-feeder-only" onclick="setRadiusListFilter('feeder')" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white transition">
+            🎯 Coming for Exam (<span id="tab-feeder-count">0</span>)
+          </button>
+          <button id="tab-all-nearby" onclick="setRadiusListFilter('all')" class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+            All in Radius (<span id="tab-all-count">0</span>)
+          </button>
+        </div>
+
         <!-- Nearby Colleges Header & Direction Layer Toggle -->
         <div class="flex items-center justify-between pt-1">
-          <span class="text-[11px] font-bold text-slate-700">Nearby Colleges (sorted by Distance):</span>
+          <span id="proximity-list-title" class="text-[11px] font-bold text-slate-700">Nearby Colleges (sorted by Distance):</span>
           <span id="proximity-count-label" class="text-[10px] text-slate-500">0 found</span>
         </div>
 
@@ -483,7 +654,7 @@
         <div class="bg-blue-50/70 border border-blue-200 rounded-lg p-2 flex items-center justify-between text-[10px]">
           <label class="flex items-center space-x-1.5 cursor-pointer text-blue-900 font-semibold select-none">
             <input type="checkbox" id="toggle-direction-rays" checked onchange="toggleProximityDirectionRays()" class="rounded text-blue-600 focus:ring-0">
-            <span>Show Direction Rays on Map</span>
+            <span>Show Feeder Routes on Map</span>
           </label>
           <span class="text-[9px] text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">
             <i class="fa-solid fa-compass mr-1"></i>Compass & Roads
@@ -493,18 +664,26 @@
         <!-- Scrollable Nearby Colleges List -->
         <div id="proximity-colleges-list" class="overflow-y-auto max-h-56 space-y-1.5 pr-1">
           <div class="text-center py-6 text-slate-400 text-xs">
-            Select a center college to calculate proximity
+            Select an exam center or college to calculate proximity
           </div>
         </div>
 
-        <!-- Action Buttons: Export & Clear Circle -->
+        <!-- Action Buttons: Allocation Excel, General Excel & Clear Circle -->
         <div class="space-y-1.5 pt-1">
+          <button 
+            id="export-exam-allocation-btn"
+            onclick="exportExamAllocationReportToExcel()" 
+            class="w-full py-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 rounded-lg flex items-center justify-center space-x-1.5 transition shadow-sm hidden"
+          >
+            <i class="fa-solid fa-file-shield"></i>
+            <span>Export Exam Center Allocation Sheet (Excel)</span>
+          </button>
           <button 
             onclick="exportRadiusReportToExcel()" 
             class="w-full py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg flex items-center justify-center space-x-1.5 transition shadow-2xs"
           >
             <i class="fa-solid fa-file-excel text-emerald-600"></i>
-            <span>Export Radius Analysis to Excel</span>
+            <span>Export Proximity Analysis to Excel</span>
           </button>
           <button 
             onclick="clearProximityCircle()" 
@@ -533,7 +712,7 @@
           </div>
         </div>
         <div class="flex items-center space-x-1">
-          <button onclick="openModal('add-college-modal')" class="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
+          <button onclick="openAddCollegeModal()" class="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
             <i class="fa-solid fa-plus mr-1"></i>Add
           </button>
           <button onclick="toggleSidebar()" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded">
@@ -804,9 +983,25 @@
           <label class="block font-semibold text-slate-700 mb-1">Branches / Streams:</label>
           <input type="text" id="form-branches" required placeholder="Computer Science, Mechanical, Civil" class="w-full p-2 border border-slate-300 rounded-lg" />
         </div>
-        <div class="flex items-center space-x-2 pt-1">
-          <input type="checkbox" id="form-exam-centre" class="rounded text-blue-600" />
-          <label for="form-exam-centre" class="font-medium text-slate-700">Mark as Designated Exam Centre</label>
+        <div class="pt-1">
+          <label class="block font-semibold text-slate-700 mb-1.5">Center Classification:</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 text-center transition">
+              <input type="radio" name="form-center-status" value="none" id="form-center-none" class="mb-1 text-blue-600" checked />
+              <span class="text-[11px] font-bold text-slate-700">College Center</span>
+              <span class="text-[9px] text-slate-400 leading-tight">Regular Affiliated</span>
+            </label>
+            <label class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-red-50 text-center transition">
+              <input type="radio" name="form-center-status" value="exam" id="form-center-exam" class="mb-1 text-red-600" />
+              <span class="text-[11px] font-bold text-red-700">★ Exam Center</span>
+              <span class="text-[9px] text-slate-400 leading-tight">Hosts other colleges</span>
+            </label>
+            <label class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 text-center transition">
+              <input type="radio" name="form-center-status" value="self" id="form-center-self" class="mb-1 text-teal-600" />
+              <span class="text-[11px] font-bold text-teal-700">🏠 Self Center</span>
+              <span class="text-[9px] text-slate-400 leading-tight">Own students in campus</span>
+            </label>
+          </div>
         </div>
 
         <div class="mt-6 flex justify-end space-x-2">
@@ -814,6 +1009,73 @@
           <button type="submit" class="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">Save College</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: UNIVERSITY EXAM CENTERS ALLOCATION MATRIX -->
+  <div id="exam-matrix-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 hidden">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center text-sm font-bold shadow-xs">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Exam Centers Feeder Allocation Matrix</h3>
+            <p class="text-[11px] text-slate-500">Colleges coming for exam under each designated Exam Center by radius</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button 
+            onclick="exportAllExamMatrixToExcel()" 
+            class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-xs flex items-center space-x-1.5 transition"
+            title="Export complete matrix to Excel"
+          >
+            <i class="fa-solid fa-file-excel"></i>
+            <span>Export Matrix (Excel)</span>
+          </button>
+          <button onclick="closeModal('exam-matrix-modal')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Control Bar: Global Radius & Search -->
+      <div class="px-5 py-3 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-slate-700">Analysis Radius:</span>
+          <select 
+            id="matrix-radius-select" 
+            onchange="renderExamMatrixContent()" 
+            class="px-2.5 py-1 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg outline-none cursor-pointer"
+          >
+            <option value="5">5 km</option>
+            <option value="10">10 km</option>
+            <option value="15" selected>15 km (Standard)</option>
+            <option value="20">20 km</option>
+            <option value="25">25 km</option>
+            <option value="30">30 km</option>
+            <option value="40">40 km</option>
+            <option value="50">50 km</option>
+          </select>
+          <span class="text-[11px] text-slate-500 italic hidden sm:inline">• Feeder colleges within radius send students to Exam Center. Self Centers conduct exams in own campus.</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <input 
+            type="text" 
+            id="matrix-search-input" 
+            oninput="renderExamMatrixContent()" 
+            placeholder="Search Exam Center..." 
+            class="px-2.5 py-1 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-500 w-48"
+          />
+        </div>
+      </div>
+
+      <!-- Matrix Content Area -->
+      <div id="exam-matrix-body" class="p-5 overflow-y-auto space-y-4 flex-1 bg-slate-50/50">
+        <!-- Rendered dynamically -->
+      </div>
     </div>
   </div>
 
@@ -1074,18 +1336,16 @@
   <script>
     // Initial Pre-populated Colleges across key educational hubs
     const DEFAULT_COLLEGES = [
-      { id: 1, code: "4118", name: "Visvesvaraya National Institute of Technology (VNIT)", district: "Nagpur", type: "Autonomous", seatingCapacity: 3500, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics, Chemical", isExamCentre: true, lat: 21.1255, lon: 79.0520 },
-      { id: 2, code: "4004", name: "Government College of Engineering, Nagpur (GCOEN)", district: "Nagpur", type: "Government", seatingCapacity: 2200, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics", isExamCentre: true, lat: 21.0963, lon: 79.0880 },
-      { id: 3, code: "4144", name: "Shri Ramdeobaba College of Engineering & Management", district: "Nagpur", type: "Autonomous", seatingCapacity: 2800, branches: "Computer Science, Data Science, AI, Mechanical, Electronics", isExamCentre: true, lat: 21.1783, lon: 79.0618 },
-      { id: 4, code: "4171", name: "Yeshwantrao Chavan College of Engineering (YCCE)", district: "Nagpur", type: "Autonomous", seatingCapacity: 2600, branches: "Computer Science, Information Technology, Civil, Mechanical", isExamCentre: false, lat: 21.0988, lon: 78.9785 },
-      { id: 5, code: "4138", name: "G.H. Raisoni College of Engineering (GHRE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2400, branches: "Computer Science, Electronics, Mechanical, Civil, Management", isExamCentre: false, lat: 21.1070, lon: 79.0022 },
-      { id: 6, code: "4190", name: "Priyadarshini College of Engineering (PCE)", district: "Nagpur", type: "Self-Finance", seatingCapacity: 2300, branches: "Computer Science, Mechanical, Civil, Electrical, Aeronautical", isExamCentre: false, lat: 21.1220, lon: 79.0065 },
-      { id: 7, code: "4163", name: "St. Vincent Pallotti College of Engineering & Tech", district: "Nagpur", type: "Self-Finance", seatingCapacity: 1900, branches: "Computer Science, Data Science, Mechanical, Civil", isExamCentre: false, lat: 21.0354, lon: 79.0832 },
-      { id: 8, code: "4201", name: "Bajaj Institute of Technology (BIT)", district: "Wardha", type: "Aided", seatingCapacity: 1800, branches: "Computer Science, Mechanical, Civil, Electrical", isExamCentre: true, lat: 20.7453, lon: 78.6022 },
-      { id: 9, code: "4208", name: "Bapurao Deshmukh College of Engineering (BDCE)", district: "Wardha", type: "Aided", seatingCapacity: 2000, branches: "Computer Science, Electronics, Mechanical, Civil", isExamCentre: false, lat: 20.7180, lon: 78.5830 },
-      { id: 10, code: "4305", name: "Government College of Engineering, Amravati (GCOEA)", district: "Amravati", type: "Government", seatingCapacity: 2500, branches: "Computer Science, Electronics, Electrical, Mechanical, Civil", isExamCentre: true, lat: 20.9320, lon: 77.7523 },
-      { id: 11, code: "4410", name: "Government College of Engineering, Chandrapur (GCOEC)", district: "Chandrapur", type: "Government", seatingCapacity: 2100, branches: "Mining, Mechanical, Electrical, Computer Science, Civil", isExamCentre: true, lat: 19.9540, lon: 79.2961 },
-      { id: 12, code: "4501", name: "Manoharbhai Patel Institute of Engineering & Tech", district: "Bhandara", type: "Aided", seatingCapacity: 1600, branches: "Computer Science, Mechanical, Electronics, Civil", isExamCentre: false, lat: 21.1712, lon: 79.6540 }
+      { id: 1, code: "0001", name: "Dr. Rammanohar Lohia Avadh University", district: "Ayodhya", type: "Government", centerType: "exam", seatingCapacity: 2500, branches: "Engineering, Science, Commerce, Arts, Law, Education", isExamCentre: true, isSelfCentre: false, lat: 26.753654, lon: 82.142606 },
+      { id: 2, code: "0102", name: "K.S. Saket Post Graduate College", district: "Ayodhya", type: "Aided", centerType: "none", seatingCapacity: 1800, branches: "Arts, Science, Commerce, Law", isExamCentre: false, isSelfCentre: false, lat: 26.7820, lon: 82.1645 },
+      { id: 3, code: "0105", name: "Rajarshi Dashrath Autonomous State Medical College", district: "Ayodhya", type: "Autonomous", centerType: "self", seatingCapacity: 2000, branches: "Medicine, Allied Health Sciences, Bio-Medical", isExamCentre: false, isSelfCentre: true, lat: 26.7410, lon: 82.1850 },
+      { id: 4, code: "0118", name: "Government Polytechnic College, Ayodhya", district: "Ayodhya", type: "Government", centerType: "none", seatingCapacity: 1200, branches: "Civil, Mechanical, Electrical, Computer Engineering", isExamCentre: false, isSelfCentre: false, lat: 26.7620, lon: 82.1120 },
+      { id: 5, code: "0124", name: "Bhavdiya Institute of Technology and Management", district: "Ayodhya", type: "Self-Finance", centerType: "none", seatingCapacity: 1400, branches: "Computer Science, Pharmacy, Management", isExamCentre: false, isSelfCentre: false, lat: 26.7115, lon: 82.0820 },
+      { id: 6, code: "0130", name: "Jhunjhunwala PG College & Business School", district: "Ayodhya", type: "Self-Finance", centerType: "self", seatingCapacity: 1600, branches: "Management, Computer Applications, Commerce, Education", isExamCentre: false, isSelfCentre: true, lat: 26.7750, lon: 82.1280 },
+      { id: 7, code: "4118", name: "Visvesvaraya National Institute of Technology (VNIT)", district: "Nagpur", type: "Autonomous", centerType: "exam", seatingCapacity: 3500, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics, Chemical", isExamCentre: true, isSelfCentre: false, lat: 21.1255, lon: 79.0520 },
+      { id: 8, code: "4004", name: "Government College of Engineering, Nagpur (GCOEN)", district: "Nagpur", type: "Government", centerType: "exam", seatingCapacity: 2200, branches: "Computer Science, Mechanical, Civil, Electrical, Electronics", isExamCentre: true, isSelfCentre: false, lat: 21.0963, lon: 79.0880 },
+      { id: 9, code: "4144", name: "Shri Ramdeobaba College of Engineering & Management", district: "Nagpur", type: "Autonomous", centerType: "self", seatingCapacity: 2800, branches: "Computer Science, Data Science, AI, Mechanical, Electronics", isExamCentre: false, isSelfCentre: true, lat: 21.1783, lon: 79.0618 },
+      { id: 10, code: "4171", name: "Yeshwantrao Chavan College of Engineering (YCCE)", district: "Nagpur", type: "Autonomous", centerType: "none", seatingCapacity: 2600, branches: "Computer Science, Information Technology, Civil, Mechanical", isExamCentre: false, isSelfCentre: false, lat: 21.0988, lon: 78.9785 }
     ];
 
     // State
@@ -1100,11 +1360,12 @@
     let kmzLayer = null;
     let isKmzVisible = true;
     let selectedTileIndex = 0;
-    let examOnlyFilter = false;
+    let centerStatusFilter = "ALL"; // "ALL" | "EXAM" | "SELF" | "REGULAR"
     let selectedTypeFilter = "ALL";
     let searchQuery = "";
     let selectedCenterCollege = null;
     let currentRadiusKm = 15;
+    let radiusListTab = "feeder"; // "feeder" | "all"
     let parsedExcelData = null;
     let parsedKmzGeoJson = null;
     let activeKmzData = null;
@@ -1112,6 +1373,20 @@
     let minCapacityFilter = 0;
     let filterBoundaryOnly = false;
     let lastCalculatedNearby = [];
+
+    // Helper to extract and normalize center classification
+    function getCollegeCenterType(col) {
+      if (!col) return "none";
+      if (col.centerType) {
+        const ct = String(col.centerType).trim().toLowerCase();
+        if (ct.includes("self") || ct.includes("home") || ct.includes("own")) return "self";
+        if (ct.includes("exam") || ct.includes("host") || ct.includes("centre") || ct.includes("center")) return "exam";
+        if (ct.includes("none") || ct.includes("regular") || ct.includes("affil")) return "none";
+      }
+      if (col.isSelfCentre) return "self";
+      if (col.isExamCentre) return "exam";
+      return "none";
+    }
 
     // Tile layers (Streets, Satellite / Hybrid, Topo, Carto)
     const TILE_PROVIDERS = [
@@ -1278,10 +1553,16 @@
         try {
           const raw = JSON.parse(stored);
           if (Array.isArray(raw) && raw.length > 0) {
-            colleges = raw.map(c => ({
-              ...c,
-              type: resolveCollegeType(c.type, c.name)
-            }));
+            colleges = raw.map(c => {
+              const ct = getCollegeCenterType(c);
+              return {
+                ...c,
+                centerType: ct,
+                isExamCentre: (ct === 'exam'),
+                isSelfCentre: (ct === 'self'),
+                type: resolveCollegeType(c.type, c.name)
+              };
+            });
           } else {
             colleges = [...DEFAULT_COLLEGES];
           }
@@ -1304,10 +1585,16 @@
         .then(r => r.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
-            colleges = data.map(c => ({
-              ...c,
-              type: resolveCollegeType(c.type, c.name)
-            }));
+            colleges = data.map(c => {
+              const ct = getCollegeCenterType(c);
+              return {
+                ...c,
+                centerType: ct,
+                isExamCentre: (ct === 'exam'),
+                isSelfCentre: (ct === 'self'),
+                type: resolveCollegeType(c.type, c.name)
+              };
+            });
             saveColleges();
             renderCollegePins();
             renderDirectoryList();
@@ -1349,9 +1636,57 @@
       // Apply initial tile layer
       applyTileLayer(0);
 
+      // Dynamic College Name Labels on zoom >= 12 (cleanly shows name without cluttering)
+      map.on("zoom", updateZoomLabels);
+      map.on("zoomend", updateZoomLabels);
+
       // Render college pins and auto-fit to data
       renderCollegePins();
       resetMapView();
+      updateZoomLabels();
+    }
+
+    let labelMode = 'auto'; // 'auto' | 'on' | 'off'
+
+    function updateZoomLabels() {
+      const el = document.getElementById("map");
+      if (!el || !map) return;
+      if (labelMode === 'off') {
+        el.classList.remove("zoom-labels-on", "zoom-labels-expanded");
+        return;
+      }
+      if (labelMode === 'on') {
+        el.classList.add("zoom-labels-on");
+        if (map.getZoom() >= 14) el.classList.add("zoom-labels-expanded");
+        else el.classList.remove("zoom-labels-expanded");
+        return;
+      }
+      // Auto mode: show names smoothly when zoomed in (>= 12)
+      const z = map.getZoom();
+      if (z >= 12) {
+        el.classList.add("zoom-labels-on");
+        if (z >= 14) {
+          el.classList.add("zoom-labels-expanded");
+        } else {
+          el.classList.remove("zoom-labels-expanded");
+        }
+      } else {
+        el.classList.remove("zoom-labels-on", "zoom-labels-expanded");
+      }
+    }
+
+    function toggleNameLabelsMode() {
+      if (labelMode === 'auto') labelMode = 'on';
+      else if (labelMode === 'on') labelMode = 'off';
+      else labelMode = 'auto';
+
+      const label = document.getElementById("toggle-labels-label");
+      if (label) {
+        if (labelMode === 'auto') label.textContent = "Names: Auto";
+        else if (labelMode === 'on') label.textContent = "Names: Always On";
+        else label.textContent = "Names: Off";
+      }
+      updateZoomLabels();
     }
 
     function applyTileLayer(index) {
@@ -1434,6 +1769,15 @@
       return "Government";
     }
 
+    function getCenterBadgeHtml(centerType) {
+      if (centerType === 'exam') {
+        return `<span class="center-status-badge badge-exam" title="★ Exam Center (Hosts external colleges)">★</span>`;
+      } else if (centerType === 'self') {
+        return `<span class="center-status-badge badge-self" title="🏠 Self Center (Students take exam in college itself)"><i class="fa-solid fa-house" style="font-size: 8px;"></i></span>`;
+      }
+      return `<span class="center-status-badge badge-college" title="🏫 College Center (Affiliated exam center)"><i class="fa-solid fa-school" style="font-size: 8px;"></i></span>`;
+    }
+
     // Configuration for different colours and types of icons per College Type
     function getCollegeTypeConfig(type, name = "") {
       const normalized = resolveCollegeType(type, name);
@@ -1447,14 +1791,17 @@
             pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
             icon: "fa-solid fa-landmark",
             shapeName: "Circle Pin",
-            createMarkerHtml: (isExam) => {
-              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+            createMarkerHtml: (col) => {
+              const centerType = getCollegeCenterType(col);
+              const badge = getCenterBadgeHtml(centerType);
+              const namePill = `<span class="college-name-pill" title="${col.name}">${col.name}</span>`;
               return `
-                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Government College">
+                <div class="marker-pin-wrapper cursor-pointer transition-transform hover:scale-125" title="${col.name} (Government - ${centerType.toUpperCase()} CENTER)">
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-blue-500/50">
                     <i class="fa-solid fa-landmark text-[11px]"></i>
                   </div>
-                  ${examBadge}
+                  ${badge}
+                  ${namePill}
                 </div>`;
             }
           };
@@ -1467,14 +1814,17 @@
             pillClass: "bg-emerald-100 text-emerald-800 border border-emerald-300",
             icon: "fa-solid fa-award",
             shapeName: "Emerald Hexagon",
-            createMarkerHtml: (isExam) => {
-              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+            createMarkerHtml: (col) => {
+              const centerType = getCollegeCenterType(col);
+              const badge = getCenterBadgeHtml(centerType);
+              const namePill = `<span class="college-name-pill" title="${col.name}">${col.name}</span>`;
               return `
-                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Aided College">
+                <div class="marker-pin-wrapper cursor-pointer transition-transform hover:scale-125" title="${col.name} (Aided - ${centerType.toUpperCase()} CENTER)">
                   <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-emerald-400/50">
                     <i class="fa-solid fa-award text-[12px]"></i>
                   </div>
-                  ${examBadge}
+                  ${badge}
+                  ${namePill}
                 </div>`;
             }
           };
@@ -1487,14 +1837,17 @@
             pillClass: "bg-purple-100 text-purple-800 border border-purple-300",
             icon: "fa-solid fa-graduation-cap",
             shapeName: "Purple Diamond",
-            createMarkerHtml: (isExam) => {
-              const examBadge = isExam ? `<span class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+            createMarkerHtml: (col) => {
+              const centerType = getCollegeCenterType(col);
+              const badge = getCenterBadgeHtml(centerType);
+              const namePill = `<span class="college-name-pill" title="${col.name}">${col.name}</span>`;
               return `
-                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Self-Finance College">
+                <div class="marker-pin-wrapper cursor-pointer transition-transform hover:scale-125" title="${col.name} (Self-Finance - ${centerType.toUpperCase()} CENTER)">
                   <div class="w-7 h-7 rotate-45 rounded-lg bg-gradient-to-br from-purple-500 to-purple-800 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-purple-400/50">
                     <i class="fa-solid fa-graduation-cap -rotate-45 text-[10px]"></i>
                   </div>
-                  ${examBadge}
+                  ${badge}
+                  ${namePill}
                 </div>`;
             }
           };
@@ -1507,14 +1860,17 @@
             pillClass: "bg-amber-100 text-amber-900 border border-amber-300",
             icon: "fa-solid fa-crown",
             shapeName: "Golden Crown Badge",
-            createMarkerHtml: (isExam) => {
-              const examBadge = isExam ? `<span class="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full w-4 h-4 text-[9px] flex items-center justify-center font-bold shadow-md border-2 border-white ring-1 ring-red-400 z-10">★</span>` : '';
+            createMarkerHtml: (col) => {
+              const centerType = getCollegeCenterType(col);
+              const badge = getCenterBadgeHtml(centerType);
+              const namePill = `<span class="college-name-pill" title="${col.name}">${col.name}</span>`;
               return `
-                <div class="relative cursor-pointer transition-transform hover:scale-125" title="Autonomous College">
+                <div class="marker-pin-wrapper cursor-pointer transition-transform hover:scale-125" title="${col.name} (Autonomous - ${centerType.toUpperCase()} CENTER)">
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-white text-white shadow-lg flex items-center justify-center text-xs ring-2 ring-amber-400/70 ring-offset-1">
                     <i class="fa-solid fa-crown text-[11px]"></i>
                   </div>
-                  ${examBadge}
+                  ${badge}
+                  ${namePill}
                 </div>`;
             }
           };
@@ -1527,7 +1883,12 @@
             pillClass: "bg-blue-100 text-blue-800 border border-blue-300",
             icon: "fa-solid fa-landmark",
             shapeName: "Circle Pin",
-            createMarkerHtml: (isExam) => `<div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white text-white flex items-center justify-center"><i class="fa-solid fa-landmark text-xs"></i></div>`
+            createMarkerHtml: (col) => {
+              const centerType = getCollegeCenterType(col);
+              const badge = getCenterBadgeHtml(centerType);
+              const namePill = `<span class="college-name-pill" title="${col.name}">${col.name}</span>`;
+              return `<div class="marker-pin-wrapper cursor-pointer"><div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white text-white flex items-center justify-center"><i class="fa-solid fa-landmark text-xs"></i></div>${badge}${namePill}</div>`;
+            }
           };
       }
     }
@@ -1541,9 +1902,11 @@
       const filtered = getFilteredColleges();
 
       filtered.forEach(col => {
-        const isExam = col.isExamCentre;
+        const centerType = getCollegeCenterType(col);
+        const isExam = (centerType === 'exam');
+        const isSelf = (centerType === 'self');
         const config = getCollegeTypeConfig(col.type, col.name);
-        const iconHtml = config.createMarkerHtml(isExam);
+        const iconHtml = config.createMarkerHtml(col);
 
         const icon = L.divIcon({
           className: "custom-marker",
@@ -1555,6 +1918,15 @@
 
         const marker = L.marker([col.lat, col.lon], { icon }).addTo(map);
 
+        let centerPillHtml = '';
+        if (isExam) {
+          centerPillHtml = '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-800 border border-red-200">★ Exam Center</span>';
+        } else if (isSelf) {
+          centerPillHtml = '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-teal-100 text-teal-800 border border-teal-200"><i class="fa-solid fa-house text-[8px] mr-1"></i>Self Center</span>';
+        } else {
+          centerPillHtml = '<span class="px-1.5 py-0.5 text-[9px] font-medium rounded bg-slate-100 text-slate-700 border border-slate-200"><i class="fa-solid fa-school text-[8px] mr-1"></i>College Center</span>';
+        }
+
         // Rich Popup Window
         const popupContent = `
           <div class="p-1 max-w-xs">
@@ -1562,7 +1934,7 @@
               <span class="px-2 py-0.5 text-[10px] font-bold rounded flex items-center space-x-1 ${config.pillClass}">
                 <i class="${config.icon} mr-1"></i>${config.label}
               </span>
-              ${isExam ? '<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-800 border border-red-200">★ Exam Center</span>' : ''}
+              ${centerPillHtml}
               <span class="text-xs font-mono font-bold text-slate-500 ml-auto">Code: ${col.code}</span>
             </div>
             <h4 class="font-bold text-slate-900 text-xs leading-tight mb-1">${col.name}</h4>
@@ -1573,11 +1945,17 @@
             </div>
             <p class="text-[10px] text-slate-500 mb-2 line-clamp-2"><strong>Streams:</strong> ${col.branches || 'General Engineering & Technology'}</p>
             <div class="flex space-x-1.5 pt-1 border-t border-slate-100">
-              <button onclick="setAsProximityCenter(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded shadow-xs text-center">
-                Radius Center
+              ${isExam 
+                ? `<button onclick="openExamCenterAllocation(${col.id})" class="flex-1 py-1 text-[10px] font-bold bg-red-600 hover:bg-red-700 text-white rounded shadow-xs text-center" title="Calculate feeder colleges coming to this Exam Center">🎯 Feeder Colleges</button>`
+                : isSelf
+                ? `<button onclick="setAsProximityCenter(${col.id})" class="flex-1 py-1 text-[10px] font-bold bg-teal-600 hover:bg-teal-700 text-white rounded shadow-xs text-center" title="Self Center: Students give exam in own campus">🏠 Self Center</button>`
+                : `<button onclick="setAsProximityCenter(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded shadow-xs text-center">Radius Center</button>`
+              }
+              <button onclick="openTransitModalWithOrigin(${col.id})" class="py-1 px-2 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow-xs text-center" title="Route Transit">
+                Route
               </button>
-              <button onclick="openTransitModalWithOrigin(${col.id})" class="flex-1 py-1 text-[10px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded shadow-xs text-center">
-                Route Transit
+              <button onclick="openEditCollegeModal(${col.id})" class="py-1 px-2 text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 text-center" title="Edit College Details & Center Classification">
+                <i class="fa-solid fa-pen text-[9px]"></i>
               </button>
             </div>
           </div>
@@ -1619,12 +1997,23 @@
       return true;
     }
 
-    // Filter Logic supporting College Types, Exam status, Streams, Capacity, Boundary, and Search query
+    // Filter Logic supporting College Types, Exam/Self/Regular status, Streams, Capacity, Boundary, and Search query
     function getFilteredColleges() {
       return colleges.filter(col => {
         const colType = resolveCollegeType(col.type, col.name);
         const matchesType = (selectedTypeFilter === "ALL") || (colType.toLowerCase() === selectedTypeFilter.toLowerCase());
-        const matchesExam = examOnlyFilter ? col.isExamCentre : true;
+
+        // 3 Center Status Options: ALL, EXAM, SELF, REGULAR
+        const centerType = getCollegeCenterType(col);
+        let matchesCenter = true;
+        if (centerStatusFilter === "EXAM") {
+          matchesCenter = (centerType === "exam");
+        } else if (centerStatusFilter === "SELF") {
+          matchesCenter = (centerType === "self");
+        } else if (centerStatusFilter === "REGULAR") {
+          matchesCenter = (centerType === "none");
+        }
+
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery = !q || 
           col.name.toLowerCase().includes(q) || 
@@ -1635,7 +2024,7 @@
         const matchesCap = minCapacityFilter > 0 ? (col.seatingCapacity >= minCapacityFilter) : true;
         const matchesStr = matchesStream(col.branches, currentStreamFilter);
         const matchesBoundary = filterBoundaryOnly ? isCollegeInBoundary(col) : true;
-        return matchesType && matchesExam && matchesQuery && matchesCap && matchesStr && matchesBoundary;
+        return matchesType && matchesCenter && matchesQuery && matchesCap && matchesStr && matchesBoundary;
       });
     }
 
@@ -1646,10 +2035,60 @@
       updateLegendActiveState();
     }
 
+    function onCenterFilterChanged(val) {
+      centerStatusFilter = val;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function setCenterFilter(val) {
+      centerStatusFilter = (centerStatusFilter === val) ? "ALL" : val;
+      const selectEl = document.getElementById("center-type-filter");
+      if (selectEl) selectEl.value = centerStatusFilter;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
     function filterByType(type) {
-      selectedTypeFilter = type;
+      selectedTypeFilter = (selectedTypeFilter === type) ? "ALL" : type;
       const selectEl = document.getElementById("college-type-filter");
-      if (selectEl) selectEl.value = type;
+      if (selectEl) selectEl.value = selectedTypeFilter;
+      renderCollegePins();
+      renderDirectoryList();
+      updateLegendActiveState();
+    }
+
+    function resetAllFilters() {
+      selectedTypeFilter = "ALL";
+      centerStatusFilter = "ALL";
+      currentStreamFilter = "all";
+      minCapacityFilter = 0;
+      filterBoundaryOnly = false;
+      searchQuery = "";
+
+      const typeSel = document.getElementById("college-type-filter");
+      if (typeSel) typeSel.value = "ALL";
+      const centerSel = document.getElementById("center-type-filter");
+      if (centerSel) centerSel.value = "ALL";
+      const searchInp = document.getElementById("search-input");
+      if (searchInp) searchInp.value = "";
+      const minCapSel = document.getElementById("min-capacity-select");
+      if (minCapSel) minCapSel.value = "0";
+      const bndCheck = document.getElementById("filter-boundary-only");
+      if (bndCheck) bndCheck.checked = false;
+
+      document.querySelectorAll(".stream-chip").forEach(btn => {
+        btn.classList.remove("bg-blue-600", "text-white");
+        btn.classList.add("bg-slate-100", "text-slate-700");
+      });
+      const allStreamBtn = document.getElementById("stream-btn-all");
+      if (allStreamBtn) {
+        allStreamBtn.classList.add("bg-blue-600", "text-white");
+        allStreamBtn.classList.remove("bg-slate-100", "text-slate-700");
+      }
+
       renderCollegePins();
       renderDirectoryList();
       updateLegendActiveState();
@@ -1741,6 +2180,16 @@
 
       filtered.forEach(col => {
         const config = getCollegeTypeConfig(col.type, col.name);
+        const centerType = getCollegeCenterType(col);
+        let centerBadge = '';
+        if (centerType === 'exam') {
+          centerBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-200">★ Exam Center</span>';
+        } else if (centerType === 'self') {
+          centerBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded border border-teal-200"><i class="fa-solid fa-house text-[8px] mr-1"></i>Self Center</span>';
+        } else {
+          centerBadge = '<span class="text-[9px] font-medium px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200"><i class="fa-solid fa-school text-[8px] mr-1"></i>College Center</span>';
+        }
+
         const item = document.createElement("div");
         item.className = "p-2.5 bg-slate-50 hover:bg-blue-50/50 border border-slate-200 rounded-xl transition cursor-pointer";
         item.onclick = () => focusCollege(col.id);
@@ -1752,14 +2201,19 @@
                 <span class="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center space-x-1 ${config.pillClass}">
                   <i class="${config.icon} mr-1 text-[8px]"></i>${config.label}
                 </span>
-                ${col.isExamCentre ? '<span class="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-200">★ Exam Center</span>' : ''}
+                ${centerBadge}
               </div>
               <h4 class="font-bold text-slate-900 text-xs leading-tight mb-0.5">${col.name}</h4>
               <p class="text-[10px] text-slate-500">${col.district} District • Cap: ${col.seatingCapacity.toLocaleString()} seats</p>
             </div>
-            <button onclick="event.stopPropagation(); deleteCollege(${col.id})" class="text-slate-400 hover:text-red-500 p-1">
-              <i class="fa-solid fa-trash-can text-xs"></i>
-            </button>
+            <div class="flex items-center space-x-0.5">
+              <button onclick="event.stopPropagation(); openEditCollegeModal(${col.id})" class="text-slate-400 hover:text-blue-600 p-1" title="Edit College Details">
+                <i class="fa-solid fa-pen-to-square text-xs"></i>
+              </button>
+              <button onclick="event.stopPropagation(); deleteCollege(${col.id})" class="text-slate-400 hover:text-red-500 p-1" title="Delete College">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+              </button>
+            </div>
           </div>
         `;
         listEl.appendChild(item);
@@ -1785,18 +2239,38 @@
       const originSelect = document.getElementById("route-origin-select");
       const destSelect = document.getElementById("route-destination-select");
 
-      const optionsHtml = colleges.map(col => 
+      const examCols = colleges.filter(c => getCollegeCenterType(c) === 'exam');
+      const selfCols = colleges.filter(c => getCollegeCenterType(c) === 'self');
+      const regCols = colleges.filter(c => getCollegeCenterType(c) === 'none');
+
+      let centerOptionsHtml = `<option value="">-- Select Center College --</option>`;
+      if (examCols.length > 0) {
+        centerOptionsHtml += `<optgroup label="★ Exam Centers (Host Centers)">` +
+          examCols.map(col => `<option value="${col.id}">★ ${col.code} - ${col.name} (${col.district})</option>`).join("") +
+          `</optgroup>`;
+      }
+      if (selfCols.length > 0) {
+        centerOptionsHtml += `<optgroup label="🏠 Self Centers (In-Campus Exams)">` +
+          selfCols.map(col => `<option value="${col.id}">🏠 ${col.code} - ${col.name} (${col.district})</option>`).join("") +
+          `</optgroup>`;
+      }
+      if (regCols.length > 0) {
+        centerOptionsHtml += `<optgroup label="🏫 Regular Affiliated Colleges">` +
+          regCols.map(col => `<option value="${col.id}">${col.code} - ${col.name} (${col.district})</option>`).join("") +
+          `</optgroup>`;
+      }
+
+      const allOptionsHtml = colleges.map(col => 
         `<option value="${col.id}">${col.code} - ${col.name} (${col.district})</option>`
       ).join("");
 
-      centerSelect.innerHTML = `<option value="">-- Select Center College --</option>` + optionsHtml;
-      originSelect.innerHTML = `<option value="">-- Select Origin Exam Center --</option>` + optionsHtml;
-      destSelect.innerHTML = `<option value="">-- Select Destination College --</option>` + optionsHtml;
+      centerSelect.innerHTML = centerOptionsHtml;
+      originSelect.innerHTML = `<option value="">-- Select Origin Exam Center --</option>` + (examCols.length > 0 ? examCols.map(col => `<option value="${col.id}">★ ${col.code} - ${col.name}</option>`).join("") : allOptionsHtml);
+      destSelect.innerHTML = `<option value="">-- Select Destination College --</option>` + allOptionsHtml;
 
       // Select first exam center by default for origin
-      const firstExam = colleges.find(c => c.isExamCentre);
-      if (firstExam) {
-        originSelect.value = firstExam.id;
+      if (examCols.length > 0) {
+        originSelect.value = examCols[0].id;
       }
     }
 
@@ -1804,7 +2278,36 @@
       document.getElementById("proximity-center-select").value = id;
       const panel = document.getElementById("proximity-panel");
       panel.classList.remove("hidden");
+      radiusListTab = "all";
       onProximityParamsChanged();
+    }
+
+    function openExamCenterAllocation(colId) {
+      document.getElementById("proximity-center-select").value = colId;
+      const panel = document.getElementById("proximity-panel");
+      panel.classList.remove("hidden");
+      radiusListTab = "feeder";
+      const btnFeeder = document.getElementById("tab-feeder-only");
+      const btnAll = document.getElementById("tab-all-nearby");
+      if (btnFeeder && btnAll) {
+        btnFeeder.className = "px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white transition shadow-xs";
+        btnAll.className = "px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+      }
+      onProximityParamsChanged();
+    }
+
+    function setRadiusListFilter(filter) {
+      radiusListTab = filter;
+      const btnFeeder = document.getElementById("tab-feeder-only");
+      const btnAll = document.getElementById("tab-all-nearby");
+      if (filter === "feeder") {
+        if (btnFeeder) btnFeeder.className = "px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-600 text-white transition shadow-xs";
+        if (btnAll) btnAll.className = "px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+      } else {
+        if (btnFeeder) btnFeeder.className = "px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition";
+        if (btnAll) btnAll.className = "px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white transition shadow-xs";
+      }
+      renderProximityListAndRays();
     }
 
     function onProximityParamsChanged() {
@@ -1826,14 +2329,16 @@
         map.removeLayer(activeCircle);
         activeCircle = null;
       }
-      clearProximityDirectionLines();
+
+      const centerType = getCollegeCenterType(selectedCenterCollege);
+      const isExam = (centerType === 'exam');
 
       activeCircle = L.circle([selectedCenterCollege.lat, selectedCenterCollege.lon], {
         radius: currentRadiusKm * 1000, // convert to meters
-        color: "#2563EB",
+        color: isExam ? "#DC2626" : "#2563EB",
         weight: 2,
         dashArray: "6, 6",
-        fillColor: "#3B82F6",
+        fillColor: isExam ? "#EF4444" : "#3B82F6",
         fillOpacity: 0.12
       }).addTo(map);
 
@@ -1860,7 +2365,7 @@
 
       lastCalculatedNearby = nearby;
 
-      // 3. Update Statistics
+      // 3. Update Statistics & Exam Allocation Hub Card
       const totalSeats = nearby.reduce((acc, item) => acc + item.col.seatingCapacity, 0);
       const dailyLimit = Math.round(totalSeats * 0.85);
 
@@ -1870,33 +2375,129 @@
       document.getElementById("proximity-stats-card").classList.remove("hidden");
       document.getElementById("proximity-count-label").textContent = `${nearby.length} colleges in ${currentRadiusKm} km`;
 
-      // 4. Render Direction Lines on Map & Scrollable Nearby Colleges List
+      // Exam Center Specific Feeder Allocation Logic
+      const hubCard = document.getElementById("exam-allocation-hub-card");
+      const tabsEl = document.getElementById("radius-list-tabs");
+      const exportAllocationBtn = document.getElementById("export-exam-allocation-btn");
+
+      if (isExam) {
+        // Feeder Colleges: Colleges coming to this Exam Center (Affiliated regular colleges, NOT Self Centers!)
+        const feederList = nearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'none');
+        const selfCentersInRadius = nearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'self');
+        const totalArrivingStudents = feederList.reduce((acc, item) => acc + (item.col.seatingCapacity || 1500), 0);
+        const centerCapacity = selectedCenterCollege.seatingCapacity || 2500;
+        const utilizationPct = centerCapacity > 0 ? Math.round((totalArrivingStudents / centerCapacity) * 100) : 0;
+
+        document.getElementById("exam-hub-capacity").textContent = centerCapacity.toLocaleString();
+        document.getElementById("exam-hub-coming-count").textContent = feederList.length;
+        document.getElementById("exam-hub-student-sum").textContent = totalArrivingStudents.toLocaleString();
+
+        const gaugeEl = document.getElementById("exam-hub-health-gauge");
+        if (gaugeEl) {
+          let statusColor = "text-emerald-700";
+          let barColor = "bg-emerald-500";
+          let statusText = `✓ Optimal Load (${utilizationPct}% utilized • ${Math.max(0, centerCapacity - totalArrivingStudents).toLocaleString()} spare seats)`;
+
+          if (utilizationPct > 100) {
+            statusColor = "text-red-700";
+            barColor = "bg-red-600";
+            statusText = `⚠️ OVER CAPACITY (${utilizationPct}% load • ${(totalArrivingStudents - centerCapacity).toLocaleString()} excess students)`;
+          } else if (utilizationPct >= 85) {
+            statusColor = "text-amber-700";
+            barColor = "bg-amber-500";
+            statusText = `⚡ Near Capacity (${utilizationPct}% utilized • ${(centerCapacity - totalArrivingStudents).toLocaleString()} seats left)`;
+          }
+
+          gaugeEl.innerHTML = `
+            <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1 overflow-hidden">
+              <div class="${barColor} h-1.5 rounded-full" style="width: ${Math.min(utilizationPct, 100)}%"></div>
+            </div>
+            <div class="${statusColor} text-[10px] font-bold flex items-center justify-between">
+              <span>${statusText}</span>
+              <span>${utilizationPct}%</span>
+            </div>
+          `;
+        }
+
+        document.getElementById("tab-feeder-count").textContent = feederList.length;
+        document.getElementById("tab-all-count").textContent = Math.max(0, nearby.length - 1);
+
+        hubCard.classList.remove("hidden");
+        tabsEl.classList.remove("hidden");
+        exportAllocationBtn.classList.remove("hidden");
+      } else {
+        hubCard.classList.add("hidden");
+        tabsEl.classList.add("hidden");
+        exportAllocationBtn.classList.add("hidden");
+      }
+
+      renderProximityListAndRays();
+    }
+
+    function renderProximityListAndRays() {
+      if (!selectedCenterCollege || !lastCalculatedNearby) return;
+
+      clearProximityDirectionLines();
       const listEl = document.getElementById("proximity-colleges-list");
       listEl.innerHTML = "";
 
+      const centerType = getCollegeCenterType(selectedCenterCollege);
+      const isExam = (centerType === 'exam');
       const showRays = document.getElementById("toggle-direction-rays")?.checked ?? true;
 
-      nearby.forEach(({ col, dist, bearing, compassDir, arrow, roadDist }) => {
+      // Filter list based on active tab
+      let displayItems = lastCalculatedNearby;
+      const feederItems = lastCalculatedNearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'none');
+      const selfCentersInRadius = lastCalculatedNearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'self');
+
+      if (isExam && radiusListTab === 'feeder') {
+        displayItems = feederItems;
+        if (selfCentersInRadius.length > 0) {
+          const selfNote = document.createElement("div");
+          selfNote.className = "p-2 rounded-lg bg-teal-50 border border-teal-200 text-[10px] text-teal-800 leading-snug";
+          selfNote.innerHTML = `
+            <div class="font-bold flex items-center mb-0.5">
+              <i class="fa-solid fa-house text-teal-600 mr-1.5"></i>
+              ${selfCentersInRadius.length} Self Center(s) within ${currentRadiusKm}km exempt from traveling:
+            </div>
+            <div class="text-[9px] text-teal-700">
+              ${selfCentersInRadius.map(s => s.col.name).join(", ")} conduct exams inside their own college campus.
+            </div>
+          `;
+          listEl.appendChild(selfNote);
+        }
+
+        if (displayItems.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "text-center py-6 text-slate-400 text-xs";
+          empty.innerHTML = `No affiliated colleges within ${currentRadiusKm} km of this Exam Center.`;
+          listEl.appendChild(empty);
+        }
+      }
+
+      displayItems.forEach(({ col, dist, bearing, compassDir, arrow, roadDist }) => {
         const isCenter = col.id === selectedCenterCollege.id;
+        const colCenterType = getCollegeCenterType(col);
         let directionLine = null;
 
         if (!isCenter) {
           // Draw Direction Ray from Center to College
+          const isFeederRay = (isExam && colCenterType === 'none');
           directionLine = L.polyline(
             [[selectedCenterCollege.lat, selectedCenterCollege.lon], [col.lat, col.lon]],
             {
-              color: "#2563EB",
-              weight: 2,
-              opacity: 0.8,
-              dashArray: "5, 6"
+              color: isFeederRay ? "#DC2626" : "#2563EB",
+              weight: isFeederRay ? 2.5 : 2,
+              opacity: 0.85,
+              dashArray: isFeederRay ? "4, 4" : "5, 6"
             }
           );
 
           directionLine.bindTooltip(`
             <div class="text-[11px] p-1 font-sans">
               <div class="font-bold text-slate-800">${col.code} - ${col.name}</div>
-              <div class="text-blue-700 font-semibold mt-0.5">
-                🧭 Direction: <strong>${compassDir} (${Math.round(bearing)}°)</strong>
+              <div class="${isFeederRay ? 'text-red-700' : 'text-blue-700'} font-semibold mt-0.5">
+                ${isFeederRay ? '🎯 Coming to Exam Center' : '🧭 Direction'}: <strong>${compassDir} (${Math.round(bearing)}°)</strong>
               </div>
               <div class="text-slate-600">
                 ✈️ Aerial Distance: <strong>${dist.toFixed(1)} km</strong>
@@ -1928,7 +2529,12 @@
           };
           item.onmouseleave = () => {
             if (map.hasLayer(directionLine)) {
-              directionLine.setStyle({ color: "#2563EB", weight: 2, dashArray: "5, 6", opacity: 0.8 });
+              directionLine.setStyle({ 
+                color: (isExam && colCenterType === 'none') ? "#DC2626" : "#2563EB", 
+                weight: (isExam && colCenterType === 'none') ? 2.5 : 2, 
+                dashArray: (isExam && colCenterType === 'none') ? "4, 4" : "5, 6", 
+                opacity: 0.85 
+              });
             }
           };
         }
@@ -1946,11 +2552,21 @@
             </div>
           `;
         } else {
+          let roleBadgeHtml = '';
+          if (isExam && colCenterType === 'none') {
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-red-100 text-red-800 border border-red-200">🎯 Coming for Exam</span>';
+          } else if (colCenterType === 'self') {
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-teal-100 text-teal-800 border border-teal-200"><i class="fa-solid fa-house mr-1 text-[8px]"></i>Self Center</span>';
+          } else if (colCenterType === 'exam') {
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200">★ Other Exam Center</span>';
+          }
+
           item.innerHTML = `
             <div class="flex-1 pr-2">
               <div class="font-bold text-slate-800 text-[11px] leading-tight truncate">${col.name}</div>
-              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()}</div>
-              <div class="mt-1 flex items-center space-x-1.5 text-[9px]">
+              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()} seats</div>
+              <div class="mt-1 flex items-center space-x-1.5 text-[9px] flex-wrap gap-1">
+                ${roleBadgeHtml}
                 <span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                   <span class="mr-1">${arrow}</span> ${compassDir} (${Math.round(bearing)}°)
                 </span>
@@ -2016,11 +2632,249 @@
       }
       clearProximityDirectionLines();
       document.getElementById("proximity-stats-card").classList.add("hidden");
+      document.getElementById("exam-allocation-hub-card").classList.add("hidden");
+      document.getElementById("radius-list-tabs").classList.add("hidden");
+      document.getElementById("export-exam-allocation-btn").classList.add("hidden");
       document.getElementById("proximity-colleges-list").innerHTML = `
         <div class="text-center py-6 text-slate-400 text-xs">Select a center college to calculate proximity</div>
       `;
       document.getElementById("proximity-count-label").textContent = "0 found";
       document.getElementById("proximity-center-select").value = "";
+    }
+
+    // EXAM CENTER ALLOCATION MATRIX & EXCEL EXPORTS
+    function exportExamAllocationReportToExcel() {
+      if (!selectedCenterCollege || !lastCalculatedNearby || lastCalculatedNearby.length === 0) {
+        alert("Please select an Exam Center with calculated feeder colleges first.");
+        return;
+      }
+
+      const feederList = lastCalculatedNearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'none');
+      const selfList = lastCalculatedNearby.filter(item => item.col.id !== selectedCenterCollege.id && getCollegeCenterType(item.col) === 'self');
+      const totalStudents = feederList.reduce((acc, item) => acc + (item.col.seatingCapacity || 1500), 0);
+      const hostCapacity = selectedCenterCollege.seatingCapacity || 2500;
+      const utilization = Math.round((totalStudents / hostCapacity) * 100);
+
+      const data = [
+        ["UNIVERSITY EXAMINATION GIS PORTAL - EXAM CENTER FEEDER ALLOCATION SHEET"],
+        ["Host Exam Center:", `${selectedCenterCollege.code} - ${selectedCenterCollege.name}`],
+        ["District:", selectedCenterCollege.district],
+        ["Host Center Seating Capacity:", `${hostCapacity.toLocaleString()} seats`],
+        ["Allocated Radius:", `${currentRadiusKm} km`],
+        ["Total Feeder Colleges Coming:", feederList.length],
+        ["Total Arriving Students:", totalStudents.toLocaleString()],
+        ["Center Capacity Utilization:", `${utilization}% (${utilization > 100 ? 'OVER CAPACITY' : 'OPTIMAL LOAD'})`],
+        ["Report Timestamp:", new Date().toLocaleString()],
+        [],
+        ["--- FEEDER COLLEGES COMING FOR EXAM UNDER THIS CENTER ---"],
+        ["No.", "College Code", "Feeder College Name", "District", "Type", "Students Arriving (Capacity)", "Aerial Dist (km)", "Est Road Dist (km)", "Travel Direction", "Streams / Courses"]
+      ];
+
+      feederList.forEach((item, idx) => {
+        data.push([
+          idx + 1,
+          item.col.code,
+          item.col.name,
+          item.col.district,
+          item.col.type,
+          item.col.seatingCapacity,
+          item.dist.toFixed(1),
+          item.roadDist.toFixed(1),
+          `${item.compassDir} (${Math.round(item.bearing)}°)`,
+          item.col.branches || "General"
+        ]);
+      });
+
+      if (selfList.length > 0) {
+        data.push([]);
+        data.push(["--- SELF CENTERS WITHIN RADIUS (EXEMPT FROM TRAVEL - CONDUCT EXAMS IN OWN CAMPUS) ---"]);
+        data.push(["No.", "College Code", "Self Center College Name", "District", "Campus Seating Capacity", "Distance (km)", "Status Note"]);
+        selfList.forEach((item, idx) => {
+          data.push([
+            idx + 1,
+            item.col.code,
+            item.col.name,
+            item.col.district,
+            item.col.seatingCapacity,
+            item.dist.toFixed(1),
+            "Self Center: Students give exam in own college campus"
+          ]);
+        });
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Exam Allocation");
+      XLSX.writeFile(wb, `Exam_Allocation_${selectedCenterCollege.code}_Radius_${currentRadiusKm}km.xlsx`);
+    }
+
+    function openExamMatrixModal() {
+      renderExamMatrixContent();
+      openModal("exam-matrix-modal");
+    }
+
+    function renderExamMatrixContent() {
+      const container = document.getElementById("exam-matrix-body");
+      if (!container) return;
+
+      const radiusKm = parseFloat(document.getElementById("matrix-radius-select")?.value || 15);
+      const searchQ = (document.getElementById("matrix-search-input")?.value || "").toLowerCase().trim();
+
+      const examCenters = colleges.filter(c => getCollegeCenterType(c) === 'exam');
+
+      if (examCenters.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-slate-400">
+            <i class="fa-solid fa-graduation-cap text-3xl mb-2 text-slate-300"></i>
+            <p class="font-bold text-sm">No Exam Centers Designated Yet</p>
+            <p class="text-xs text-slate-500 mt-1">Designate colleges as Exam Centers using the College Directory or Form.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const filteredCenters = examCenters.filter(c => 
+        !searchQ || c.name.toLowerCase().includes(searchQ) || c.code.toLowerCase().includes(searchQ) || c.district.toLowerCase().includes(searchQ)
+      );
+
+      let html = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      `;
+
+      filteredCenters.forEach(center => {
+        // Calculate feeder colleges under this exam center for radiusKm
+        const nearby = colleges.map(col => ({
+          col,
+          dist: haversineDistance(center.lat, center.lon, col.lat, col.lon)
+        }))
+        .filter(item => item.dist <= radiusKm && item.col.id !== center.id)
+        .sort((a, b) => a.dist - b.dist);
+
+        const feederColleges = nearby.filter(item => getCollegeCenterType(item.col) === 'none');
+        const selfColleges = nearby.filter(item => getCollegeCenterType(item.col) === 'self');
+        const arrivingStudents = feederColleges.reduce((sum, item) => sum + (item.col.seatingCapacity || 1500), 0);
+        const hostCapacity = center.seatingCapacity || 2500;
+        const utilizationPct = hostCapacity > 0 ? Math.round((arrivingStudents / hostCapacity) * 100) : 0;
+
+        let statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Optimal (${utilizationPct}%)</span>`;
+        if (utilizationPct > 100) {
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">Over Capacity (${utilizationPct}%)</span>`;
+        } else if (utilizationPct >= 85) {
+          statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Near Limit (${utilizationPct}%)</span>`;
+        }
+
+        html += `
+          <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-4 flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between mb-2">
+                <div>
+                  <div class="flex items-center space-x-1.5">
+                    <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-600 text-white shadow-2xs">★ Exam Center</span>
+                    <span class="text-xs font-mono font-bold text-slate-500">${center.code}</span>
+                  </div>
+                  <h4 class="font-bold text-slate-900 text-sm mt-1 leading-snug">${center.name}</h4>
+                  <p class="text-xs text-slate-500">${center.district} District</p>
+                </div>
+                ${statusBadge}
+              </div>
+
+              <div class="bg-slate-50 rounded-lg p-2.5 my-2 border border-slate-100 grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <div class="font-bold text-blue-700">${hostCapacity.toLocaleString()}</div>
+                  <div class="text-[9px] text-slate-500 uppercase font-medium">Host Seats</div>
+                </div>
+                <div>
+                  <div class="font-bold text-red-700">${feederColleges.length}</div>
+                  <div class="text-[9px] text-slate-500 uppercase font-medium">Feeder Colleges</div>
+                </div>
+                <div>
+                  <div class="font-bold text-indigo-700">${arrivingStudents.toLocaleString()}</div>
+                  <div class="text-[9px] text-slate-500 uppercase font-medium">Students Arriving</div>
+                </div>
+              </div>
+
+              <div class="text-xs font-bold text-slate-700 mt-2 mb-1 flex items-center justify-between">
+                <span>Feeder Colleges (${radiusKm} km radius):</span>
+                <span class="text-[10px] font-normal text-slate-500">${selfColleges.length} Self Center(s) exempt</span>
+              </div>
+
+              <div class="max-h-32 overflow-y-auto space-y-1 pr-1 border border-slate-100 rounded-lg p-1.5 bg-slate-50/50">
+                ${feederColleges.length === 0 ? '<div class="text-slate-400 text-[10px] text-center py-2">No feeder colleges in radius</div>' : ''}
+                ${feederColleges.map((f, i) => `
+                  <div class="flex items-center justify-between text-[11px] p-1 bg-white rounded border border-slate-100">
+                    <span class="truncate flex-1 pr-2 font-medium text-slate-800">${i + 1}. ${f.col.name}</span>
+                    <span class="text-[10px] text-blue-700 font-bold whitespace-nowrap">${f.dist.toFixed(1)} km</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center space-x-2">
+              <button 
+                onclick="closeModal('exam-matrix-modal'); openExamCenterAllocation(${center.id})" 
+                class="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center transition shadow-2xs"
+              >
+                Inspect on Map (${radiusKm}km)
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function exportAllExamMatrixToExcel() {
+      const radiusKm = parseFloat(document.getElementById("matrix-radius-select")?.value || 15);
+      const examCenters = colleges.filter(c => getCollegeCenterType(c) === 'exam');
+
+      if (examCenters.length === 0) {
+        alert("No Exam Centers available to export.");
+        return;
+      }
+
+      const data = [
+        ["UNIVERSITY EXAMINATION GIS - ALL EXAM CENTERS & FEEDER COLLEGES MATRIX"],
+        ["Analyzed Radius:", `${radiusKm} km`],
+        ["Total Exam Centers:", examCenters.length],
+        ["Report Timestamp:", new Date().toLocaleString()],
+        [],
+        ["Exam Center Code", "Exam Center Name", "District", "Center Seating Capacity", "Feeder Colleges Count", "Total Arriving Students", "Capacity Utilization %", "Status", "Feeder Colleges Under Center", "Self Centers In Radius (Exempt)"]
+      ];
+
+      examCenters.forEach(center => {
+        const nearby = colleges.map(col => ({
+          col,
+          dist: haversineDistance(center.lat, center.lon, col.lat, col.lon)
+        }))
+        .filter(item => item.dist <= radiusKm && item.col.id !== center.id)
+        .sort((a, b) => a.dist - b.dist);
+
+        const feederColleges = nearby.filter(item => getCollegeCenterType(item.col) === 'none');
+        const selfColleges = nearby.filter(item => getCollegeCenterType(item.col) === 'self');
+        const arrivingStudents = feederColleges.reduce((sum, item) => sum + (item.col.seatingCapacity || 1500), 0);
+        const hostCapacity = center.seatingCapacity || 2500;
+        const utilizationPct = hostCapacity > 0 ? Math.round((arrivingStudents / hostCapacity) * 100) : 0;
+
+        data.push([
+          center.code,
+          center.name,
+          center.district,
+          hostCapacity,
+          feederColleges.length,
+          arrivingStudents,
+          `${utilizationPct}%`,
+          utilizationPct > 100 ? "OVER CAPACITY" : "OPTIMAL",
+          feederColleges.map(f => `${f.col.code}-${f.col.name} (${f.dist.toFixed(1)}km)`).join("; "),
+          selfColleges.map(s => `${s.col.code}-${s.col.name} (Self Center)`).join("; ")
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Exam Centers Matrix");
+      XLSX.writeFile(wb, `University_Exam_Centers_Allocation_Matrix_${radiusKm}km.xlsx`);
     }
 
     // FULL SCREEN TOGGLE
@@ -2182,7 +3036,6 @@
             let code = "";
             let name = "";
             let district = "";
-            let isExam = false;
 
             if (codeColIndex !== -1 && row[codeColIndex]) code = String(row[codeColIndex]).trim();
             if (nameColIndex !== -1 && row[nameColIndex]) name = String(row[nameColIndex]).trim();
@@ -2259,11 +3112,20 @@
               }
             }
 
+            // 5. Center Classification (Exam Center / Self Center / None)
+            let centerType = "none";
             if (examColIndex !== -1 && row[examColIndex]) {
-              const eStr = String(row[examColIndex]).toLowerCase();
-              isExam = eStr.includes("yes") || eStr.includes("true") || eStr === "1";
+              const eStr = String(row[examColIndex]).toLowerCase().trim();
+              if (eStr.includes("self") || eStr.includes("home") || eStr.includes("own")) {
+                centerType = "self";
+              } else if (eStr.includes("yes") || eStr.includes("true") || eStr === "1" || eStr.includes("exam") || eStr.includes("host") || eStr.includes("centre") || eStr.includes("center")) {
+                centerType = "exam";
+              }
+            } else if (capacity >= 2500) {
+              centerType = "exam";
             }
-            if (capacity >= 2000 && !isExam) isExam = true;
+            const isExam = (centerType === "exam");
+            const isSelf = (centerType === "self");
 
             let branches = "General Engineering, Technology";
             if (branchColIndex !== -1 && row[branchColIndex]) {
@@ -2278,9 +3140,11 @@
               name,
               district,
               type: collegeType,
+              centerType: centerType,
               seatingCapacity: capacity,
               branches,
               isExamCentre: isExam,
+              isSelfCentre: isSelf,
               lat,
               lon
             });
@@ -2801,6 +3665,44 @@
       closeModal("transit-modal");
     }
 
+    function openAddCollegeModal() {
+      document.getElementById("college-modal-title").textContent = "Add College to Map";
+      document.getElementById("edit-college-id").value = "";
+      document.getElementById("college-form").reset();
+      document.getElementById("form-center-none").checked = true;
+      openModal("add-college-modal");
+    }
+
+    function openEditCollegeModal(id) {
+      const col = colleges.find(c => c.id === id);
+      if (!col) return;
+
+      document.getElementById("college-modal-title").textContent = `Edit College (${col.code})`;
+      document.getElementById("edit-college-id").value = col.id;
+      document.getElementById("form-code").value = col.code || "";
+      document.getElementById("form-name").value = col.name || "";
+      document.getElementById("form-district").value = col.district || "";
+      if (document.getElementById("form-type")) {
+        document.getElementById("form-type").value = resolveCollegeType(col.type, col.name);
+      }
+      document.getElementById("form-capacity").value = col.seatingCapacity || 1500;
+      document.getElementById("form-lat").value = col.lat || "";
+      document.getElementById("form-lon").value = col.lon || "";
+      document.getElementById("form-branches").value = col.branches || "";
+
+      // 3 Center Classification Options: Exam Center, Self Center, Nothing
+      const centerType = getCollegeCenterType(col);
+      if (centerType === 'exam') {
+        document.getElementById("form-center-exam").checked = true;
+      } else if (centerType === 'self') {
+        document.getElementById("form-center-self").checked = true;
+      } else {
+        document.getElementById("form-center-none").checked = true;
+      }
+
+      openModal("add-college-modal");
+    }
+
     // ADD / EDIT / DELETE COLLEGE
     function handleCollegeFormSubmit(e) {
       e.preventDefault();
@@ -2809,42 +3711,63 @@
         return;
       }
 
+      const editIdStr = document.getElementById("edit-college-id")?.value;
+      const isEditing = Boolean(editIdStr);
+      const collegeId = isEditing ? parseInt(editIdStr) : Date.now();
+
       const code = document.getElementById("form-code").value.trim();
       const name = document.getElementById("form-name").value.trim();
       const district = document.getElementById("form-district").value.trim();
       const type = document.getElementById("form-type") ? document.getElementById("form-type").value : "Government";
-      const capacity = parseInt(document.getElementById("form-capacity").value);
+      const capacity = parseInt(document.getElementById("form-capacity").value) || 1500;
       const lat = parseFloat(document.getElementById("form-lat").value);
       const lon = parseFloat(document.getElementById("form-lon").value);
       const branches = document.getElementById("form-branches").value.trim();
-      const isExam = document.getElementById("form-exam-centre").checked;
 
-      const newCol = {
-        id: Date.now(),
+      // Read 3 Options: Exam Center, Self Center, None
+      const centerRadio = document.querySelector('input[name="form-center-status"]:checked');
+      const centerType = centerRadio ? centerRadio.value : "none"; // "exam" | "self" | "none"
+      const isExam = (centerType === "exam");
+      const isSelf = (centerType === "self");
+
+      const collegeData = {
+        id: collegeId,
         code,
         name,
         district,
         type: resolveCollegeType(type, name),
+        centerType: centerType,
         seatingCapacity: capacity,
         branches,
         isExamCentre: isExam,
+        isSelfCentre: isSelf,
         lat,
         lon
       };
 
-      colleges.push(newCol);
+      if (isEditing) {
+        const idx = colleges.findIndex(c => c.id === collegeId);
+        if (idx !== -1) {
+          colleges[idx] = { ...colleges[idx], ...collegeData };
+        } else {
+          colleges.push(collegeData);
+        }
+      } else {
+        colleges.push(collegeData);
+      }
+
       saveColleges();
       renderCollegePins();
       renderDirectoryList();
       populateDropdowns();
       closeModal("add-college-modal");
-      focusCollege(newCol.id);
+      focusCollege(collegeData.id);
 
       // Persist to Server for all users
       fetch('/api/colleges', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCol)
+        body: JSON.stringify(collegeData)
       }).catch(err => console.error("Error persisting college:", err));
     }
 

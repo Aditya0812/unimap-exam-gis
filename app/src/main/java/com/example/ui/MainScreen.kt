@@ -87,6 +87,7 @@ fun MainScreen(
     val selectedBranch by viewModel.selectedBranch.collectAsState()
     val selectedCollegeType by viewModel.selectedCollegeType.collectAsState()
     val examCentresOnly by viewModel.examCentresOnly.collectAsState()
+    val selfCentresOnly by viewModel.selfCentresOnly.collectAsState()
 
     val activeSheetMode by viewModel.activeSheetMode.collectAsState()
     val selectedCollege by viewModel.selectedCollege.collectAsState()
@@ -142,6 +143,8 @@ fun MainScreen(
                     onSelectCollegeType = { viewModel.setSelectedCollegeType(it) },
                     examCentresOnly = examCentresOnly,
                     onToggleExamCentresOnly = { viewModel.toggleExamCentresOnly(it) },
+                    selfCentresOnly = selfCentresOnly,
+                    onToggleSelfCentresOnly = { viewModel.toggleSelfCentresOnly(it) },
                     onOpenUploadDialog = { viewModel.openUploadDialog() },
                     onOpenKmzDialog = { viewModel.openKmzDialog() },
                     hasKmzLoaded = kmzDistrictBoundaries.isNotEmpty(),
@@ -411,6 +414,7 @@ fun MainScreen(
                     onUploadUri = { uri, replaceAll ->
                         viewModel.uploadSpreadsheet(context, uri, replaceAll)
                     },
+                    onRestoreDefaults = { viewModel.restoreDefaultColleges() },
                     onDismiss = { viewModel.closeUploadDialog() }
                 )
             }
