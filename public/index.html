@@ -662,7 +662,7 @@
         </div>
 
         <!-- Scrollable Nearby Colleges List -->
-        <div id="proximity-colleges-list" class="overflow-y-auto max-h-56 space-y-1.5 pr-1">
+        <div id="proximity-colleges-list" class="overflow-y-auto overflow-x-hidden max-h-56 space-y-1.5 pr-1 w-full">
           <div class="text-center py-6 text-slate-400 text-xs">
             Select an exam center or college to calculate proximity
           </div>
@@ -2467,13 +2467,13 @@
         displayItems = feederItems;
         if (selfCentersInRadius.length > 0) {
           const selfNote = document.createElement("div");
-          selfNote.className = "p-2 rounded-lg bg-teal-50 border border-teal-200 text-[10px] text-teal-800 leading-snug";
+          selfNote.className = "p-2.5 rounded-lg bg-teal-50 border border-teal-200 text-[10px] text-teal-800 leading-snug break-words w-full box-border";
           selfNote.innerHTML = `
-            <div class="font-bold flex items-center mb-0.5">
-              <i class="fa-solid fa-house text-teal-600 mr-1.5"></i>
-              ${selfCentersInRadius.length} Self Center(s) within ${currentRadiusKm}km exempt from traveling:
+            <div class="font-bold flex items-start mb-0.5">
+              <i class="fa-solid fa-house text-teal-600 mr-1.5 mt-0.5 flex-shrink-0"></i>
+              <span class="break-words">${selfCentersInRadius.length} Self Center(s) within ${currentRadiusKm}km exempt from traveling:</span>
             </div>
-            <div class="text-[9px] text-teal-700">
+            <div class="text-[9px] text-teal-700 break-words mt-0.5">
               ${selfCentersInRadius.map(s => s.col.name).join(", ")} conduct exams inside their own college campus.
             </div>
           `;
@@ -2530,7 +2530,7 @@
         }
 
         const item = document.createElement("div");
-        item.className = `p-2 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition ${isCenter ? 'bg-blue-50/80 border-blue-300 shadow-xs' : 'bg-white hover:bg-slate-50 border-slate-200'}`;
+        item.className = `p-2.5 rounded-lg border text-xs flex items-start justify-between cursor-pointer transition w-full box-border min-w-0 ${isCenter ? 'bg-blue-50/80 border-blue-300 shadow-xs' : 'bg-white hover:bg-slate-50 border-slate-200'}`;
         item.onclick = () => focusCollege(col.id);
 
         if (directionLine) {
@@ -2554,42 +2554,43 @@
 
         if (isCenter) {
           item.innerHTML = `
-            <div class="flex-1 pr-2">
-              <div class="font-bold text-blue-900 text-[11px] leading-tight flex items-center">
-                <i class="fa-solid fa-star text-amber-500 mr-1 text-[10px]"></i> ${col.name}
+            <div class="flex-1 min-w-0 pr-2">
+              <div class="font-bold text-blue-900 text-[11px] leading-snug break-words flex items-start">
+                <i class="fa-solid fa-star text-amber-500 mr-1.5 mt-0.5 text-[10px] flex-shrink-0"></i>
+                <span class="break-words">${col.name}</span>
               </div>
-              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()} seats</div>
+              <div class="text-[9px] text-slate-500 break-words mt-0.5">${col.code} • ${col.district} • Cap: ${(col.seatingCapacity || 0).toLocaleString()} seats</div>
             </div>
-            <div class="px-2 py-1 rounded text-[9px] font-bold bg-blue-600 text-white shadow-xs">
+            <div class="flex-shrink-0 px-2 py-1 rounded text-[9px] font-bold bg-blue-600 text-white shadow-xs self-start whitespace-nowrap">
               CENTER HUB
             </div>
           `;
         } else {
           let roleBadgeHtml = '';
           if (isExam && colCenterType === 'none') {
-            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-red-100 text-red-800 border border-red-200">🎯 Coming for Exam</span>';
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-red-100 text-red-800 border border-red-200 whitespace-nowrap">🎯 Coming for Exam</span>';
           } else if (colCenterType === 'self') {
-            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-teal-100 text-teal-800 border border-teal-200"><i class="fa-solid fa-house mr-1 text-[8px]"></i>Self Center</span>';
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-teal-100 text-teal-800 border border-teal-200 whitespace-nowrap"><i class="fa-solid fa-house mr-1 text-[8px]"></i>Self Center</span>';
           } else if (colCenterType === 'exam') {
-            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200">★ Other Exam Center</span>';
+            roleBadgeHtml = '<span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200 whitespace-nowrap">★ Other Exam Center</span>';
           }
 
           item.innerHTML = `
-            <div class="flex-1 pr-2">
-              <div class="font-bold text-slate-800 text-[11px] leading-tight truncate">${col.name}</div>
-              <div class="text-[9px] text-slate-500">${col.code} • ${col.district} • Cap: ${col.seatingCapacity.toLocaleString()} seats</div>
+            <div class="flex-1 min-w-0 pr-2">
+              <div class="font-bold text-slate-800 text-[11px] leading-snug break-words">${col.name}</div>
+              <div class="text-[9px] text-slate-500 break-words mt-0.5">${col.code} • ${col.district} • Cap: ${(col.seatingCapacity || 0).toLocaleString()} seats</div>
               <div class="mt-1 flex items-center space-x-1.5 text-[9px] flex-wrap gap-1">
                 ${roleBadgeHtml}
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
                   <span class="mr-1">${arrow}</span> ${compassDir} (${Math.round(bearing)}°)
                 </span>
               </div>
             </div>
-            <div class="flex flex-col items-end space-y-1">
-              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title="Straight-line Aerial Distance">
+            <div class="flex-shrink-0 flex flex-col items-end space-y-1 ml-1.5 self-start">
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap" title="Straight-line Aerial Distance">
                 ✈️ ${dist.toFixed(1)} km
               </span>
-              <span id="road-badge-${col.id}" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Estimated / Live Road Distance">
+              <span id="road-badge-${col.id}" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap" title="Estimated / Live Road Distance">
                 🚗 ${roadDist.toFixed(1)} km
               </span>
             </div>
@@ -2814,9 +2815,9 @@
               <div class="max-h-32 overflow-y-auto space-y-1 pr-1 border border-slate-100 rounded-lg p-1.5 bg-slate-50/50">
                 ${feederColleges.length === 0 ? '<div class="text-slate-400 text-[10px] text-center py-2">No feeder colleges in radius</div>' : ''}
                 ${feederColleges.map((f, i) => `
-                  <div class="flex items-center justify-between text-[11px] p-1 bg-white rounded border border-slate-100">
-                    <span class="truncate flex-1 pr-2 font-medium text-slate-800">${i + 1}. ${f.col.name}</span>
-                    <span class="text-[10px] text-blue-700 font-bold whitespace-nowrap">${f.dist.toFixed(1)} km</span>
+                  <div class="flex items-start justify-between text-[11px] p-1.5 bg-white rounded border border-slate-100 min-w-0">
+                    <span class="break-words min-w-0 flex-1 pr-2 font-medium text-slate-800 leading-snug">${i + 1}. ${f.col.name}</span>
+                    <span class="text-[10px] text-blue-700 font-bold whitespace-nowrap flex-shrink-0">${f.dist.toFixed(1)} km</span>
                   </div>
                 `).join("")}
               </div>

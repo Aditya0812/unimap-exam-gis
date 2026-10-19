@@ -332,22 +332,24 @@ fun RadiusCircleToolSheet(
                                     .fillMaxWidth()
                                     .padding(horizontal = 8.dp, vertical = 6.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 6.dp)
+                                ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = col.name,
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Text(
                                         text = "${col.code} • ${col.district} • Cap: ${col.seatingCapacity}",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     if (col.id != selectedCenterCollege.id) {
                                         val brng = calculateBearingDegrees(
